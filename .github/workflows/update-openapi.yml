@@ -1,0 +1,29 @@
+name: update-openapi
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: jdx/mise-action@v5.1.2
+      - run: bun install --frozen-lockfile
+      # 型検査とテストが落ちる spec 変更は PR を作らず、run の失敗として残す
+      - run: bun run update:openapi
+      - uses: peter-evans/create-pull-request@v8.1.1
+        with:
+          branch: chore/update-openapi
+          title: 'chore: update CodeRabbit OpenAPI spec and generated client'
+          commit-message: 'chore: update CodeRabbit OpenAPI spec and generated client'
+          body: 'Fetched https://docs.coderabbit.ai/openapi.json and regenerated `src/generated/` with Orval.'
+          add-paths: |
+            openapi/coderabbit.json
+            src/generated
