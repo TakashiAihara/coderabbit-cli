@@ -1,0 +1,22 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: jdx/mise-action@v5.1.2
+      - run: bun install --frozen-lockfile
+      # 生成物が spec と orval.config から再生成したものと一致するか
+      - run: bun run generate && git diff --exit-code -- src/generated
+      - run: bun run typecheck
+      - run: bun test
+      - run: bun run build

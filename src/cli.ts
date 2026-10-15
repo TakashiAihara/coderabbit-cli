@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
-import { Command } from 'commander';
+import { Command, InvalidArgumentError } from 'commander';
+
+import pkg from '../package.json';
 
 import { auditLogsList } from './generated/audit-logs/audit-logs';
 import { getSeatAssignmentMode, listUsers, reviewMetrics } from './generated/default/default';
@@ -12,20 +14,21 @@ import { securityScansCodeList } from './generated/security/security';
 // --query k=v を繰り返し受けて API のクエリにそのまま渡す。パラメータ名は OpenAPI のものを使う
 export const collect = (kv: string, acc: Record<string, string>) => {
   const i = kv.indexOf('=');
-  if (i <= 0) throw new Error(`--query expects key=value: ${kv}`);
+  if (i <= 0) throw new InvalidArgumentError(`expected key=value: ${kv}`);
   return { ...acc, [kv.slice(0, i)]: kv.slice(i + 1) };
 };
 
 const print = (result: unknown) => {
   if (result === undefined) return;
-  console.log(typeof result === 'string' ? result : JSON.stringify(result, null, 2));
+  // CSV / SARIF は本文の末尾改行をそのまま保つ
+  process.stdout.write(typeof result === 'string' ? result : `${JSON.stringify(result, null, 2)}\n`);
 };
 
 type Query = { query: Record<string, string> };
 
-const withQuery = (cmd: Command) => cmd.option('-q, --query <key=value>', 'API query parameter (repeatable)', collect, {});
+const withQuery = (cmd: Command) => cmd.option('-q, --query <key=value>', 'API query parameter, one -q per parameter (lists are comma-separated)', collect, {});
 
-export const program = new Command('coderabbit-cli').description('CLI for the CodeRabbit API');
+export const program = new Command('coderabbit-cli').description('CLI for the CodeRabbit API').version(pkg.version);
 
 withQuery(program.command('organizations').description('GET /v1/organizations')).action(
   async (o: Query) => print(await organizationsList(o.query)),
