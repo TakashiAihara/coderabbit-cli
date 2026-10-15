@@ -16,7 +16,8 @@ jobs:
       - uses: jdx/mise-action@v5.1.2
       - run: bun install --frozen-lockfile
       # 生成物が spec と orval.config から再生成したものと一致するか
-      - run: bun run generate && git diff --exit-code -- src/generated
+      # git diff は未追跡の新規ファイルを見ないので status で見る
+      - run: bun run generate && test -z "$(git status --porcelain -- src/generated)"
       - run: bun run typecheck
       - run: bun test
       - run: bun run build

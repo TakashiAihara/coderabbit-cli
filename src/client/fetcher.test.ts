@@ -55,6 +55,13 @@ test('keeps a path prefix on the base URL', async () => {
   expect(seen[0]!.url.pathname).toBe('/proxy/v1/security/scans/code');
 });
 
+test('does not fall back to the default host when CODERABBIT_API_URL is empty', async () => {
+  process.env.CODERABBIT_API_URL = '';
+
+  await expect(securityScansCodeList()).rejects.toThrow('URL is invalid');
+  expect(seen).toHaveLength(0);
+});
+
 test('returns CSV bodies as text', async () => {
   expect((await securityScansCodeList({ format: 'csv' })) as unknown).toBe('id,state\nf-7,open\n');
 });

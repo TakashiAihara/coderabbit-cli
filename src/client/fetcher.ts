@@ -15,7 +15,7 @@ export const coderabbitFetch = async <T>(url: string, options: RequestInit): Pro
   if (!apiKey) throw new Error('CODERABBIT_API_KEY is not set');
 
   // new URL(path, base) だと base のパス部分が捨てられるので、文字列でつなぐ
-  const baseUrl = (process.env.CODERABBIT_API_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
+  const baseUrl = (process.env.CODERABBIT_API_URL ?? DEFAULT_BASE_URL).replace(/\/+$/, '');
   const headers = new Headers(options.headers);
   headers.set('x-coderabbitai-api-key', apiKey);
 

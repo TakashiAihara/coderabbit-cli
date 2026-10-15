@@ -33,14 +33,15 @@ export const program = new Command('coderabbit-cli').description('CLI for the Co
 withQuery(program.command('organizations').description('GET /v1/organizations')).action(
   async (o: Query) => print(await organizationsList(o.query)),
 );
+// 生成コードは path パラメータを URL エンコードしないので、ここで行う
 withQuery(program.command('repositories <organizationId>').description('GET /v1/organizations/{organization_id}/repositories')).action(
-  async (id: string, o: Query) => print(await organizationRepositoriesList(id, o.query)),
+  async (id: string, o: Query) => print(await organizationRepositoriesList(encodeURIComponent(id), o.query)),
 );
 withQuery(program.command('users').description('GET /v1/users')).action(async (o: Query) => print(await listUsers(o.query)));
 program.command('seat-mode').description('GET /v1/users/seats/assignment').action(async () => print(await getSeatAssignmentMode()));
 withQuery(program.command('roles').description('GET /v1/roles')).action(async (o: Query) => print(await listRoles(o.query)));
 withQuery(program.command('role <roleId>').description('GET /v1/roles/{roleId}')).action(
-  async (id: string, o: Query) => print(await getRole(id, o.query)),
+  async (id: string, o: Query) => print(await getRole(encodeURIComponent(id), o.query)),
 );
 withQuery(program.command('role-permissions').description('GET /v1/roles/permissions')).action(
   async (o: Query) => print(await listRolePermissionOptions(o.query)),

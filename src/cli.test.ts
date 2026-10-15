@@ -3,6 +3,9 @@ import { InvalidArgumentError } from 'commander';
 
 import { collect, program } from './cli';
 
+// usage エラーで process.exit させず、テストの失敗として返す
+program.exitOverride();
+
 test('collect accumulates key=value pairs and keeps "=" inside values', () => {
   expect(collect('b=x=y', collect('a=1', {}))).toEqual({ a: '1', b: 'x=y' });
 });
@@ -46,12 +49,12 @@ test('commands call their API path with the given query', async () => {
   paths.length = 0;
   await run('security-code', '-q', 'limit=3', '-q', 'state=open');
   await run('repositories', 'org-5');
-  await run('role', 'r-8');
+  await run('role', 'r/8?x');
 
   expect(paths).toEqual([
     '/v1/security/scans/code?limit=3&state=open',
     '/v1/organizations/org-5/repositories',
-    '/v1/roles/r-8',
+    '/v1/roles/r%2F8%3Fx',
   ]);
 });
 
