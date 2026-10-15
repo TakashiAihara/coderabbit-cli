@@ -1,0 +1,24 @@
+{
+  "name": "coderabbit-cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "coderabbit": "./src/cli.ts"
+  },
+  "scripts": {
+    "fetch:openapi": "curl -fsSL https://docs.coderabbit.ai/openapi.json -o openapi/coderabbit.json",
+    "generate": "orval --config ./orval.config.ts",
+    "build": "bun build --compile --minify ./src/cli.ts --outfile dist/coderabbit",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "commander": "15.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.3",
+    "orval": "8.43.0",
+    "typescript": "7.0.2"
+  }
+}
