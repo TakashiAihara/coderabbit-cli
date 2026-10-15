@@ -4,13 +4,13 @@
   "private": true,
   "type": "module",
   "bin": {
-    "coderabbit": "./src/cli.ts"
+    "coderabbit-cli": "./src/cli.ts"
   },
   "scripts": {
     "fetch:openapi": "curl -fsSL https://docs.coderabbit.ai/openapi.json -o openapi/coderabbit.json",
     "generate": "orval --config ./orval.config.ts",
     "update:openapi": "bun run fetch:openapi && bun run generate && bun run typecheck && bun test",
-    "build": "bun build --compile --minify ./src/cli.ts --outfile dist/coderabbit",
+    "build": "bun build --compile --minify ./src/cli.ts --outfile dist/coderabbit-cli",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },

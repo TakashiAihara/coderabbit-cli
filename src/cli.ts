@@ -25,7 +25,7 @@ type Query = { query: Record<string, string> };
 
 const withQuery = (cmd: Command) => cmd.option('-q, --query <key=value>', 'API query parameter (repeatable)', collect, {});
 
-export const program = new Command('coderabbit').description('CLI for the CodeRabbit API');
+export const program = new Command('coderabbit-cli').description('CLI for the CodeRabbit API');
 
 withQuery(program.command('organizations').description('GET /v1/organizations')).action(
   async (o: Query) => print(await organizationsList(o.query)),
