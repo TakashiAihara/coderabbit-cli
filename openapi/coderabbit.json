@@ -1,0 +1,4273 @@
+{
+	"openapi": "3.0.3",
+	"info": {
+		"title": "CodeRabbit API spec",
+		"version": "1.0.0"
+	},
+	"servers": [
+		{
+			"url": "https://api.coderabbit.ai"
+		}
+	],
+	"paths": {
+		"/api/v1/report.generate": {
+			"post": {
+				"operationId": "report-generate",
+				"summary": "",
+				"description": "DEPRECATED: Generate a developer activity report based on the provided parameters and date range. This endpoint may take up to 10 minutes to respond depending on the data volume.  Prompts cannot be used and this is only for testing purposes. We recommend creating a recurring report and triggering a preview via the UI instead.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"scheduleRange": {
+										"type": "string",
+										"enum": ["Dates"]
+									},
+									"from": {
+										"type": "string",
+										"format": "date",
+										"description": "Start date for the report in ISO 8601 format (YYYY-MM-DD)"
+									},
+									"to": {
+										"type": "string",
+										"format": "date",
+										"description": "End date for the report in ISO 8601 format (YYYY-MM-DD)"
+									},
+									"prompt": {
+										"type": "string",
+										"description": "Custom prompt to specify what information should be included in the report and how it should be formatted"
+									},
+									"promptTemplate": {
+										"type": "string",
+										"enum": [
+											"Daily Standup Report",
+											"Sprint Report",
+											"Release Notes",
+											"Custom"
+										],
+										"description": "Pre-defined template for the report format"
+									},
+									"parameters": {
+										"type": "array",
+										"description": "Array of filter parameters to narrow down the report scope",
+										"items": {
+											"type": "object",
+											"properties": {
+												"parameter": {
+													"type": "string",
+													"enum": [
+														"REPOSITORY",
+														"LABEL",
+														"TEAM",
+														"USER",
+														"SOURCEBRANCH",
+														"TARGETBRANCH",
+														"STATE"
+													],
+													"description": "Filter type"
+												},
+												"operator": {
+													"type": "string",
+													"enum": ["IN", "ALL", "NOT_IN"],
+													"description": "Filter operator"
+												},
+												"values": {
+													"type": "array",
+													"items": {
+														"type": "string"
+													},
+													"description": "Array of string values to filter by"
+												}
+											},
+											"required": ["parameter", "operator", "values"],
+											"additionalProperties": false
+										}
+									},
+									"groupBy": {
+										"type": "string",
+										"enum": [
+											"NONE",
+											"REPOSITORY",
+											"LABEL",
+											"TEAM",
+											"USER",
+											"SOURCEBRANCH",
+											"TARGETBRANCH",
+											"STATE"
+										],
+										"description": "Primary grouping for the report"
+									},
+									"subgroupBy": {
+										"type": "string",
+										"enum": [
+											"NONE",
+											"REPOSITORY",
+											"LABEL",
+											"TEAM",
+											"USER",
+											"SOURCEBRANCH",
+											"TARGETBRANCH",
+											"STATE"
+										],
+										"description": "Secondary grouping for the report"
+									},
+									"orgId": {
+										"type": "string",
+										"description": "Organization ID (optional)"
+									}
+								},
+								"required": ["from", "to"],
+								"additionalProperties": false
+							},
+							"example": {
+								"from": "2024-05-01",
+								"to": "2024-05-15"
+							}
+						}
+					}
+				},
+				"parameters": [
+					{
+						"name": "x-coderabbitai-api-key",
+						"description": "Your CodeRabbit API key",
+						"required": true,
+						"example": "cr-xxxxxxxxxx",
+						"allowEmptyValue": false,
+						"schema": {
+							"type": "string"
+						},
+						"in": "header"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Successful response",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"group": {
+												"type": "string",
+												"description": "The name of the report group"
+											},
+											"report": {
+												"type": "string",
+												"description": "The formatted report content as a markdown string"
+											}
+										},
+										"required": ["group", "report"],
+										"additionalProperties": false
+									}
+								},
+								"example": [
+									{
+										"group": "Developer Activity",
+										"report": "*Developer Activity*:\n\n 🟢 **Update README.md** [#10](https://gitlab.com/master-group123/sub-group/project1/-/merge_requests/10)\n• Summary: The change updates the project description and modifies a section header for clearer instructions.\n• Last activity: 1 day ago, mergeable\n• Insights:\n - :magnifying_glass: @user2 Suggested updating the wording to make it clearer"
+									}
+								]
+							}
+						}
+					},
+					"400": {
+						"description": "Bad Request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								},
+								"example": {
+									"errors": [
+										{
+											"code": "INVALID_PARAMETER",
+											"message": "start_date: start_date is required"
+										}
+									]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								},
+								"example": {
+									"message": "Invalid or missing API key",
+									"code": "UNAUTHORIZED"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								},
+								"example": {
+									"message": "API access requires a Pro plan subscription",
+									"code": "FORBIDDEN"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Too Many Requests",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								},
+								"example": {
+									"message": "Rate limit exceeded. Please retry after 60 seconds.",
+									"code": "RATE_LIMITED"
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				]
+			}
+		},
+		"/v1/metrics/reviews": {
+			"get": {
+				"operationId": "review-metrics",
+				"x-codeSamples": [
+					{
+						"lang": "Shell",
+						"label": "cURL",
+						"source": "curl --request GET \\\n  --url 'https://api.coderabbit.ai/v1/metrics/reviews?start_date=2026-01-01&end_date=2026-01-20' \\\n  --header 'x-coderabbitai-api-key: <api-key>'"
+					},
+					{
+						"lang": "Python",
+						"label": "Python",
+						"source": "import requests\n\nurl = 'https://api.coderabbit.ai/v1/metrics/reviews'\n\nheaders = {'x-coderabbitai-api-key': '<api-key>'}\n\nparams = {'start_date': '2026-01-01', 'end_date': '2026-01-20'}\n\nresponse = requests.get(url, headers=headers, params=params)\n\nprint(response.text)"
+					},
+					{
+						"lang": "JavaScript",
+						"label": "JavaScript",
+						"source": "const options = {method: 'GET', headers: {'x-coderabbitai-api-key': '<api-key>'}};\n\nfetch('https://api.coderabbit.ai/v1/metrics/reviews?start_date=2026-01-01&end_date=2026-01-20', options)\n  .then(res => res.json())\n  .then(res => console.log(res))\n  .catch(err => console.error(err));"
+					},
+					{
+						"lang": "PHP",
+						"label": "PHP",
+						"source": "<?php\n$curl = curl_init();\n\ncurl_setopt_array($curl, [\n  CURLOPT_URL => 'https://api.coderabbit.ai/v1/metrics/reviews?start_date=2026-01-01&end_date=2026-01-20',\n  CURLOPT_RETURNTRANSFER => true,\n  CURLOPT_ENCODING => '',\n  CURLOPT_MAXREDIRS => 10,\n  CURLOPT_TIMEOUT => 30,\n  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,\n  CURLOPT_CUSTOMREQUEST => 'GET',\n  CURLOPT_HTTPHEADER => [\n    'x-coderabbitai-api-key: <api-key>'\n  ],\n]);\n\n$response = curl_exec($curl);\n$err = curl_error($curl);\ncurl_close($curl);\n\nif ($err) {\n  echo 'cURL Error #:' . $err;\n} else {\n  echo $response;\n}\n?>"
+					},
+					{
+						"lang": "Go",
+						"label": "Go",
+						"source": "package main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n\t\"io\"\n)\n\nfunc main() {\n\n\turl := \"https://api.coderabbit.ai/v1/metrics/reviews?start_date=2026-01-01&end_date=2026-01-20\"\n\n\treq, _ := http.NewRequest(\"GET\", url, nil)\n\n\treq.Header.Add(\"x-coderabbitai-api-key\", \"<api-key>\")\n\n\tres, _ := http.DefaultClient.Do(req)\n\n\tdefer res.Body.Close()\n\tbody, _ := io.ReadAll(res.Body)\n\n\tfmt.Println(string(body))\n\n}"
+					},
+					{
+						"lang": "Java",
+						"label": "Java",
+						"source": "HttpResponse<String> response = Unirest.get(\"https://api.coderabbit.ai/v1/metrics/reviews?start_date=2026-01-01&end_date=2026-01-20\")\n  .header(\"x-coderabbitai-api-key\", \"<api-key>\")\n  .asString();"
+					},
+					{
+						"lang": "Ruby",
+						"label": "Ruby",
+						"source": "require 'uri'\nrequire 'net/http'\n\nurl = URI(\"https://api.coderabbit.ai/v1/metrics/reviews?start_date=2026-01-01&end_date=2026-01-20\")\n\nhttp = Net::HTTP.new(url.host, url.port)\nhttp.use_ssl = true\n\nrequest = Net::HTTP::Get.new(url)\nrequest[\"x-coderabbitai-api-key\"] = \"<api-key>\"\n\nresponse = http.request(request)\nputs response.read_body"
+					}
+				],
+				"summary": "Metrics Data",
+				"description": "Access CodeRabbit metrics data programmatically via REST API.",
+				"parameters": [
+					{
+						"name": "x-coderabbitai-api-key",
+						"description": "Your CodeRabbit API key",
+						"required": true,
+						"example": "cr-xxxxxxxxxx",
+						"schema": {
+							"type": "string"
+						},
+						"in": "header"
+					},
+					{
+						"name": "start_date",
+						"description": "Start date in ISO 8601 format (YYYY-MM-DD)",
+						"required": true,
+						"example": "2026-01-01",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"in": "query"
+					},
+					{
+						"name": "end_date",
+						"description": "End date in ISO 8601 format (YYYY-MM-DD)",
+						"required": true,
+						"example": "2026-01-20",
+						"schema": {
+							"type": "string",
+							"format": "date"
+						},
+						"in": "query"
+					},
+					{
+						"name": "status",
+						"description": "Filter finalized pull requests by status",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": ["merged", "closed", "all"],
+							"default": "merged"
+						},
+						"in": "query"
+					},
+					{
+						"name": "organization_ids",
+						"description": "Filter by organization Git provider IDs (comma-separated, max 10). Self-hosted instances only.",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"in": "query"
+					},
+					{
+						"name": "repository_ids",
+						"description": "Filter by repository Git provider IDs (comma-separated, max 10).",
+						"required": false,
+						"example": "672319970,849426160",
+						"schema": {
+							"type": "string"
+						},
+						"in": "query"
+					},
+					{
+						"name": "user_ids",
+						"description": "Filter by author Git provider IDs (comma-separated, max 10).",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"in": "query"
+					},
+					{
+						"name": "format",
+						"description": "Response format",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": ["json", "csv"],
+							"default": "json"
+						},
+						"in": "query"
+					},
+					{
+						"name": "limit",
+						"description": "Maximum records to return",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"default": 1000
+						},
+						"in": "query"
+					},
+					{
+						"name": "cursor",
+						"description": "Pagination cursor for fetching next page of results",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"in": "query"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Successful response",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/ReviewMetric"
+											}
+										},
+										"next_cursor": {
+											"type": "string",
+											"description": "Cursor for fetching the next page of results. Not present if no more results."
+										}
+									},
+									"required": ["data"]
+								},
+								"example": {
+									"data": [
+										{
+											"pr_url": "https://github.com/org/repo/pull/123",
+											"organization_id": "132028505",
+											"organization_name": "my-org",
+											"repository_id": "672319970",
+											"repository_name": "my-repo",
+											"author_id": "14079159",
+											"author_username": "john123",
+											"created_at": "2025-01-15T10:00:00Z",
+											"ready_for_review_at": "2025-01-15T10:15:00Z",
+											"first_human_review_at": "2025-01-15T10:00:00Z",
+											"last_commit_at": "2025-01-15T10:00:00Z",
+											"merged_at": "2025-01-16T14:30:00Z",
+											"status": "merged",
+											"review_iterations": 3,
+											"estimated_complexity": 3,
+											"estimated_review_minutes": 45,
+											"coderabbit_comments": {
+												"total": { "posted": 8, "accepted": 5 },
+												"severity": {
+													"critical": { "posted": 2, "accepted": 1 },
+													"major": { "posted": 3, "accepted": 2 },
+													"minor": { "posted": 2, "accepted": 1 },
+													"trivial": { "posted": 1, "accepted": 1 },
+													"info": { "posted": 0, "accepted": 0 }
+												},
+												"category": {
+													"security_and_privacy": {
+														"posted": 2,
+														"accepted": 1
+													},
+													"performance_and_scalability": {
+														"posted": 1,
+														"accepted": 1
+													},
+													"functional_correctness": {
+														"posted": 2,
+														"accepted": 1
+													},
+													"maintainability_and_code_quality": {
+														"posted": 2,
+														"accepted": 1
+													},
+													"data_integrity_and_integration": {
+														"posted": 1,
+														"accepted": 1
+													},
+													"stability_and_availability": {
+														"posted": 0,
+														"accepted": 0
+													}
+												}
+											}
+										}
+									],
+									"next_cursor": "2025-01-16T10:30:00Z"
+								}
+							},
+							"text/csv": {
+								"schema": {
+									"type": "string",
+									"description": "CSV file with one row per PR. The coderabbit_comments object is flattened into individual columns."
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Bad Request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								},
+								"example": {
+									"errors": [
+										{
+											"code": "INVALID_PARAMETER",
+											"message": "start_date: start_date is required"
+										}
+									]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								},
+								"example": {
+									"message": "Invalid or missing API key",
+									"code": "UNAUTHORIZED"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								},
+								"example": {
+									"message": "API access requires an Enterprise plan subscription",
+									"code": "FORBIDDEN"
+								}
+							}
+						}
+					},
+					"413": {
+						"description": "Payload Too Large",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								},
+								"example": {
+									"message": "Response exceeds maximum size of 16MB. Please use a smaller date range or add filters.",
+									"code": "RESPONSE_TOO_LARGE"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Too Many Requests",
+						"headers": {
+							"X-RateLimit-Limit": {
+								"description": "Maximum number of requests allowed per minute",
+								"schema": {
+									"type": "integer",
+									"example": 10
+								}
+							},
+							"X-RateLimit-Remaining": {
+								"description": "Number of requests remaining in the current rate limit window",
+								"schema": {
+									"type": "integer",
+									"example": 0
+								}
+							},
+							"X-RateLimit-Reset": {
+								"description": "Unix timestamp when the rate limit window resets",
+								"schema": {
+									"type": "integer",
+									"example": 1704067200
+								}
+							},
+							"Retry-After": {
+								"description": "Number of seconds to wait before retrying",
+								"schema": {
+									"type": "integer",
+									"example": 60
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								},
+								"example": {
+									"message": "Rate limit exceeded. Please retry after 60 seconds.",
+									"code": "RATE_LIMITED"
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				]
+			}
+		},
+		"/v1/users": {
+			"get": {
+				"operationId": "list-users",
+				"summary": "Users",
+				"description": "List all users in your organization with optional filtering by seat assignment and role status. Supports cursor-based pagination.",
+				"x-codeSamples": [
+					{
+						"lang": "Shell",
+						"label": "cURL",
+						"source": "curl --request GET \\\n  --url 'https://api.coderabbit.ai/v1/users?seat_filter=all&role_filter=all&limit=100' \\\n  --header 'x-coderabbitai-api-key: <api-key>'"
+					},
+					{
+						"lang": "Python",
+						"label": "Python",
+						"source": "import requests\n\nurl = 'https://api.coderabbit.ai/v1/users'\n\nheaders = {'x-coderabbitai-api-key': '<api-key>'}\n\nparams = {'seat_filter': 'all', 'role_filter': 'all', 'limit': 100}\n\nresponse = requests.get(url, headers=headers, params=params)\n\nprint(response.text)"
+					},
+					{
+						"lang": "JavaScript",
+						"label": "JavaScript",
+						"source": "const options = {method: 'GET', headers: {'x-coderabbitai-api-key': '<api-key>'}};\n\nfetch('https://api.coderabbit.ai/v1/users?seat_filter=all&role_filter=all&limit=100', options)\n  .then(res => res.json())\n  .then(res => console.log(res))\n  .catch(err => console.error(err));"
+					},
+					{
+						"lang": "Go",
+						"label": "Go",
+						"source": "package main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n\t\"io\"\n)\n\nfunc main() {\n\n\turl := \"https://api.coderabbit.ai/v1/users?seat_filter=all&role_filter=all&limit=100\"\n\n\treq, _ := http.NewRequest(\"GET\", url, nil)\n\n\treq.Header.Add(\"x-coderabbitai-api-key\", \"<api-key>\")\n\n\tres, _ := http.DefaultClient.Do(req)\n\n\tdefer res.Body.Close()\n\tbody, _ := io.ReadAll(res.Body)\n\n\tfmt.Println(string(body))\n\n}"
+					}
+				],
+				"parameters": [
+					{
+						"name": "x-coderabbitai-api-key",
+						"description": "Your CodeRabbit API key",
+						"required": true,
+						"example": "cr-xxxxxxxxxx",
+						"schema": {
+							"type": "string"
+						},
+						"in": "header"
+					},
+					{
+						"name": "seat_filter",
+						"description": "Filter users by seat assignment status",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": ["all", "assigned", "unassigned"],
+							"default": "all"
+						},
+						"in": "query"
+					},
+					{
+						"name": "role_filter",
+						"description": "Filter users by role",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": ["all", "member", "admin"],
+							"default": "all"
+						},
+						"in": "query"
+					},
+					{
+						"name": "limit",
+						"description": "Maximum number of users to return per page",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100,
+							"default": 100
+						},
+						"in": "query"
+					},
+					{
+						"name": "cursor",
+						"description": "Pagination cursor from previous response's next_cursor field",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"in": "query"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "List of users with seat and subscription info",
+						"headers": {
+							"X-RateLimit-Limit": {
+								"description": "Maximum requests allowed per time window (10)",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Remaining": {
+								"description": "Requests remaining in current window",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Reset": {
+								"description": "Unix timestamp when the rate limit resets",
+								"schema": {
+									"type": "integer"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"seats_purchased": {
+											"type": "integer",
+											"description": "Total number of seats purchased in the subscription"
+										},
+										"seats_assigned": {
+											"type": "integer",
+											"description": "Number of seats currently assigned to users"
+										},
+										"seat_assignment_mode": {
+											"type": "string",
+											"enum": ["automatic", "manual"],
+											"description": "The seat assignment mode for the organization"
+										},
+										"users": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/User"
+											}
+										},
+										"next_cursor": {
+											"type": "string",
+											"nullable": true,
+											"description": "Cursor for the next page of results, or null if no more results"
+										}
+									},
+									"required": ["seats_purchased", "seats_assigned", "seat_assignment_mode", "users"]
+								},
+								"example": {
+									"seats_purchased": 50,
+									"seats_assigned": 30,
+									"seat_assignment_mode": "manual",
+									"users": [
+										{
+											"user_id": "121358802",
+											"seat_assigned": true,
+											"role": "cr_admin"
+										},
+										{
+											"user_id": "22605247",
+											"seat_assigned": false,
+											"role": "cr_member"
+										}
+									],
+									"next_cursor": "MjI2MDUyNDc="
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"examples": {
+									"invalid_filter": {
+										"summary": "Invalid filter value",
+										"value": {
+											"error": {
+												"code": "INVALID_REQUEST",
+												"message": "Invalid seat_filter. Must be one of: \"all\", \"assigned\", \"unassigned\""
+											}
+										}
+									},
+									"invalid_cursor": {
+										"summary": "Invalid cursor format",
+										"value": {
+											"error": {
+												"code": "INVALID_REQUEST",
+												"message": "Invalid cursor format"
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized - Invalid or missing API key",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "UNAUTHORIZED",
+										"message": "Invalid or inactive API key"
+									}
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - Not an admin or missing Enterprise plan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "NOT_ADMIN",
+										"message": "Only administrators can perform seat management operations"
+									}
+								}
+							}
+						}
+					},
+					"410": {
+						"description": "Legacy API key - deprecated and no longer supported for user management",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "LEGACY_API_KEY",
+										"message": "You are using a legacy API key. We are deprecating use of legacy keys. Regenerate a new API key and retry the request."
+									}
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit exceeded (10 requests per 60 seconds per organization)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "RATE_LIMIT_EXCEEDED",
+										"message": "Rate limit exceeded. Max 10 requests per 60 seconds"
+									}
+								}
+							}
+						},
+						"headers": {
+							"Retry-After": {
+								"description": "Seconds to wait before retrying",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Limit": {
+								"description": "Maximum requests allowed per time window",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Remaining": {
+								"description": "Always 0 when rate limited",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Reset": {
+								"description": "Unix timestamp when the rate limit resets",
+								"schema": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "INTERNAL_ERROR",
+										"message": "Internal server error while listing users"
+									}
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				]
+			}
+		},
+		"/v1/users/seats": {
+			"post": {
+				"operationId": "manage-seats",
+				"summary": "Seats",
+				"description": "Bulk assign or unassign seats for up to 500 users. The request format depends on the type of API key used. **Organization and self-hosted instance API keys** address users by provider user ID with the `action` + `user_ids` format, where the `action` field determines the operation type. **Workspace API keys** address users by email or CodeRabbit user ID (`cr_user_id`) with the `members` format, where each entry declares its desired seat state via `seat_assigned`. Sending the `action` + `user_ids` format with a workspace API key (or the `members` format with an organization key) fails with an `INVALID_REQUEST` error.",
+				"parameters": [
+					{
+						"name": "x-coderabbitai-api-key",
+						"description": "Your CodeRabbit API key",
+						"required": true,
+						"example": "cr-xxxxxxxxxx",
+						"schema": {
+							"type": "string"
+						},
+						"in": "header"
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"oneOf": [
+									{
+										"$ref": "#/components/schemas/ManageSeatsRequest"
+									},
+									{
+										"$ref": "#/components/schemas/ManageSeatsMembersRequest"
+									}
+								]
+							},
+							"examples": {
+								"assign": {
+									"summary": "Assign seats (organization or self-hosted instance key)",
+									"value": {
+										"action": "assign",
+										"user_ids": ["121358802", "22605247"]
+									}
+								},
+								"unassign": {
+									"summary": "Unassign seats (organization or self-hosted instance key)",
+									"value": {
+										"action": "unassign",
+										"user_ids": ["121358802", "22605247"]
+									}
+								},
+								"assignByEmail": {
+									"summary": "Assign seats (workspace key)",
+									"value": {
+										"members": [
+											{
+												"email": "jane@example.com",
+												"seat_assigned": true
+											},
+											{
+												"cr_user_id": "3f8e2a9c-6b1d-4e5a-9c7f-2d4b8a6e1c3b",
+												"seat_assigned": true
+											}
+										]
+									}
+								},
+								"unassignByEmail": {
+									"summary": "Unassign seats (workspace key)",
+									"value": {
+										"members": [
+											{
+												"email": "jane@example.com",
+												"seat_assigned": false
+											}
+										]
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Operation completed (check status field for partial failures). The `succeeded` and `failed` entries echo the identifiers used in the request: provider user IDs for organization and self-hosted instance keys; for workspace keys, whichever identifier each member supplied (`cr_user_id` when provided, otherwise `email`).",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/BulkOperationResponse"
+								},
+								"example": {
+									"status": "success",
+									"succeeded": ["121358802", "22605247"],
+									"failed": []
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "BATCH_SIZE_EXCEEDED",
+										"message": "Maximum 500 users per request"
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized - Invalid or missing API key",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "UNAUTHORIZED",
+										"message": "Invalid or inactive API key"
+									}
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - Not an admin or missing Enterprise plan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "NOT_ADMIN",
+										"message": "Only administrators can perform seat management operations"
+									}
+								}
+							}
+						}
+					},
+					"410": {
+						"description": "Legacy API key - deprecated and no longer supported for user management",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "LEGACY_API_KEY",
+										"message": "You are using a legacy API key. We are deprecating use of legacy keys. Regenerate a new API key and retry the request."
+									}
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit exceeded (10 requests per 60 seconds per organization)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "RATE_LIMIT_EXCEEDED",
+										"message": "Rate limit exceeded. Max 10 requests per 60 seconds"
+									}
+								}
+							}
+						},
+						"headers": {
+							"Retry-After": {
+								"description": "Seconds to wait before retrying",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Limit": {
+								"description": "Maximum requests allowed per time window",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Remaining": {
+								"description": "Always 0 when rate limited",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Reset": {
+								"description": "Unix timestamp when the rate limit resets",
+								"schema": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "INTERNAL_ERROR",
+										"message": "Internal server error while listing users"
+									}
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				]
+			}
+		},
+		"/v1/users/seats/assignment": {
+			"get": {
+				"operationId": "get-seat-assignment-mode",
+				"summary": "Get Seat Assignment Mode",
+				"description": "Retrieve the current seat assignment mode for the organization. Only accessible by fully self-hosted organizations with enterprise plans.",
+				"parameters": [
+					{
+						"name": "x-coderabbitai-api-key",
+						"description": "Your CodeRabbit API key",
+						"required": true,
+						"example": "cr-xxxxxxxxxx",
+						"schema": {
+							"type": "string"
+						},
+						"in": "header"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Successfully retrieved seat assignment mode",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SeatAssignmentModeResponse"
+								},
+								"example": {
+									"mode": "automatic"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized - Invalid or missing API key",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "UNAUTHORIZED",
+										"message": "Invalid or inactive API key"
+									}
+								}
+							}
+						}
+					},
+					"402": {
+						"description": "Payment Required - No active subscription",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "NO_ACTIVE_SUBSCRIPTION",
+										"message": "No active subscription found for the organization"
+									}
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - Not an admin, not self-hosted, or missing Enterprise plan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "SELF_HOSTED_ONLY",
+										"message": "This endpoint is only available for self-hosted instances"
+									}
+								}
+							}
+						}
+					},
+					"410": {
+						"description": "Legacy API key - deprecated and no longer supported",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "LEGACY_API_KEY",
+										"message": "You are using a legacy API key. We are deprecating use of legacy keys. Regenerate a new API key and retry the request."
+									}
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit exceeded (10 requests per 60 seconds per organization)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "RATE_LIMIT_EXCEEDED",
+										"message": "Rate limit exceeded. Max 10 requests per 60 seconds"
+									}
+								}
+							}
+						},
+						"headers": {
+							"Retry-After": {
+								"description": "Seconds to wait before retrying",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Limit": {
+								"description": "Maximum requests allowed per time window",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Remaining": {
+								"description": "Always 0 when rate limited",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Reset": {
+								"description": "Unix timestamp when the rate limit resets",
+								"schema": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "INTERNAL_ERROR",
+										"message": "Internal server error while getting seat assignment mode"
+									}
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				]
+			},
+			"post": {
+				"operationId": "update-seat-assignment-mode",
+				"summary": "Update Seat Assignment Mode",
+				"description": "Update the seat assignment mode for the organization. Only accessible by fully self-hosted organizations with enterprise plans.",
+				"parameters": [
+					{
+						"name": "x-coderabbitai-api-key",
+						"description": "Your CodeRabbit API key",
+						"required": true,
+						"example": "cr-xxxxxxxxxx",
+						"schema": {
+							"type": "string"
+						},
+						"in": "header"
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateSeatAssignmentModeRequest"
+							},
+							"examples": {
+								"manual": {
+									"summary": "Set to manual mode",
+									"value": {
+										"mode": "manual"
+									}
+								},
+								"automatic": {
+									"summary": "Set to automatic mode",
+									"value": {
+										"mode": "automatic"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Seat assignment mode updated successfully",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SeatAssignmentModeResponse"
+								},
+								"example": {
+									"mode": "manual"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "INVALID_REQUEST",
+										"message": "Invalid enum value. Expected 'manual' | 'automatic', received 'invalid'"
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized - Invalid or missing API key",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "UNAUTHORIZED",
+										"message": "Invalid or inactive API key"
+									}
+								}
+							}
+						}
+					},
+					"402": {
+						"description": "Payment Required - No active subscription",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "NO_ACTIVE_SUBSCRIPTION",
+										"message": "No active subscription found for the organization"
+									}
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - Not an admin, not self-hosted, or missing Enterprise plan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "SELF_HOSTED_ONLY",
+										"message": "This endpoint is only available for self-hosted instances"
+									}
+								}
+							}
+						}
+					},
+					"410": {
+						"description": "Legacy API key - deprecated and no longer supported",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "LEGACY_API_KEY",
+										"message": "You are using a legacy API key. We are deprecating use of legacy keys. Regenerate a new API key and retry the request."
+									}
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit exceeded (10 requests per 60 seconds per organization)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "RATE_LIMIT_EXCEEDED",
+										"message": "Rate limit exceeded. Max 10 requests per 60 seconds"
+									}
+								}
+							}
+						},
+						"headers": {
+							"Retry-After": {
+								"description": "Seconds to wait before retrying",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Limit": {
+								"description": "Maximum requests allowed per time window",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Remaining": {
+								"description": "Always 0 when rate limited",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Reset": {
+								"description": "Unix timestamp when the rate limit resets",
+								"schema": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "INTERNAL_ERROR",
+										"message": "Internal server error while updating seat assignment mode"
+									}
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				]
+			}
+		},
+		"/v1/users/roles": {
+			"post": {
+				"operationId": "change-roles",
+				"summary": "Roles",
+				"description": "Bulk change roles for up to 500 users. Returns partial success with details of which users succeeded or failed.",
+				"parameters": [
+					{
+						"name": "x-coderabbitai-api-key",
+						"description": "Your CodeRabbit API key",
+						"required": true,
+						"example": "cr-xxxxxxxxxx",
+						"schema": {
+							"type": "string"
+						},
+						"in": "header"
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ChangeRolesRequest"
+							},
+							"examples": {
+								"promote": {
+									"summary": "Promote users to admin",
+									"value": {
+										"role": "cr_admin",
+										"user_ids": ["121358802", "22605247"]
+									}
+								},
+								"demote": {
+									"summary": "Change users to member",
+									"value": {
+										"role": "cr_member",
+										"user_ids": ["121358802", "22605247"]
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Operation completed (check status field for partial failures)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/BulkOperationResponse"
+								},
+								"example": {
+									"status": "success",
+									"succeeded": ["121358802", "22605247"],
+									"failed": []
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "BATCH_SIZE_EXCEEDED",
+										"message": "Maximum 500 users per request"
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized - Invalid or missing API key",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "UNAUTHORIZED",
+										"message": "Invalid or inactive API key"
+									}
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - Not an admin or missing Enterprise plan",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "NOT_ADMIN",
+										"message": "Only administrators can perform seat management operations"
+									}
+								}
+							}
+						}
+					},
+					"410": {
+						"description": "Legacy API key - deprecated and no longer supported for user management",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "LEGACY_API_KEY",
+										"message": "You are using a legacy API key. We are deprecating use of legacy keys. Regenerate a new API key and retry the request."
+									}
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit exceeded (10 requests per 60 seconds per organization)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "RATE_LIMIT_EXCEEDED",
+										"message": "Rate limit exceeded. Max 10 requests per 60 seconds"
+									}
+								}
+							}
+						},
+						"headers": {
+							"Retry-After": {
+								"description": "Seconds to wait before retrying",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Limit": {
+								"description": "Maximum requests allowed per time window",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Remaining": {
+								"description": "Always 0 when rate limited",
+								"schema": {
+									"type": "integer"
+								}
+							},
+							"X-RateLimit-Reset": {
+								"description": "Unix timestamp when the rate limit resets",
+								"schema": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiError"
+								},
+								"example": {
+									"error": {
+										"code": "INTERNAL_ERROR",
+										"message": "Internal server error while listing users"
+									}
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				]
+			}
+		},
+		"/v1/audit-logs": {
+				"get": {
+					"operationId": "audit-logs-list",
+					"summary": "List audit log entries",
+					"description": "Returns a paginated list of organization-level audit log entries. Requires the Enterprise plan, Admin role, and a non-agentic API key.",
+					"tags": ["Audit Logs"],
+					"security": [
+						{
+							"ApiKeyAuth": []
+						}
+					],
+					"parameters": [
+						{
+							"name": "search",
+							"in": "query",
+							"required": false,
+							"description": "Case-insensitive partial match on actor name. Max 200 characters.",
+							"schema": {
+								"type": "string",
+								"maxLength": 200
+							}
+						},
+						{
+							"name": "actions",
+							"in": "query",
+							"required": false,
+							"description": "Comma-separated list of action keys to filter by. Up to 50 values. Example: `repository_create,api_key_delete`",
+							"schema": {
+								"type": "string"
+							}
+						},
+						{
+							"name": "resource_types",
+							"in": "query",
+							"required": false,
+							"description": "Comma-separated list of resource type keys to filter by. Up to 50 values. Example: `repository,api_key`",
+							"schema": {
+								"type": "string"
+							}
+						},
+						{
+							"name": "date_from",
+							"in": "query",
+							"required": false,
+							"description": "Inclusive lower bound for the event timestamp, in ISO 8601 format.",
+							"schema": {
+								"type": "string",
+								"format": "date-time"
+							}
+						},
+						{
+							"name": "date_to",
+							"in": "query",
+							"required": false,
+							"description": "Inclusive upper bound for the event timestamp, in ISO 8601 format. Must be on or after `date_from`.",
+							"schema": {
+								"type": "string",
+								"format": "date-time"
+							}
+						},
+						{
+							"name": "page",
+							"in": "query",
+							"required": false,
+							"description": "Page number (1-based). Defaults to `1`.",
+							"schema": {
+								"type": "integer",
+								"minimum": 1,
+								"default": 1
+							}
+						},
+						{
+							"name": "page_size",
+							"in": "query",
+							"required": false,
+							"description": "Number of results per page. Defaults to `10`, max `100`.",
+							"schema": {
+								"type": "integer",
+								"minimum": 1,
+								"maximum": 100,
+								"default": 10
+							}
+						}
+					],
+					"x-codeSamples": [
+						{
+							"lang": "cURL",
+							"source": "curl --request GET \\\n  --url 'https://api.coderabbit.ai/v1/audit-logs?page=1&page_size=25' \\\n  --header 'x-coderabbitai-api-key: <api-key>'"
+						},
+						{
+							"lang": "Python",
+							"source": "import requests\n\nurl = 'https://api.coderabbit.ai/v1/audit-logs'\n\nheaders = {'x-coderabbitai-api-key': '<api-key>'}\n\nparams = {'page': 1, 'page_size': 25}\n\nresponse = requests.get(url, headers=headers, params=params)\n\nprint(response.text)"
+						},
+						{
+							"lang": "JavaScript",
+							"source": "const options = {method: 'GET', headers: {'x-coderabbitai-api-key': '<api-key>'}};\n\nfetch('https://api.coderabbit.ai/v1/audit-logs?page=1&page_size=25', options)\n  .then(res => res.json())\n  .then(res => console.log(res))\n  .catch(err => console.error(err));"
+						},
+						{
+							"lang": "Go",
+							"source": "package main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n\t\"io\"\n)\n\nfunc main() {\n\n\turl := \"https://api.coderabbit.ai/v1/audit-logs?page=1&page_size=25\"\n\n\treq, _ := http.NewRequest(\"GET\", url, nil)\n\n\treq.Header.Add(\"x-coderabbitai-api-key\", \"<api-key>\")\n\n\tres, _ := http.DefaultClient.Do(req)\n\n\tdefer res.Body.Close()\n\tbody, _ := io.ReadAll(res.Body)\n\n\tfmt.Println(string(body))\n\n}"
+						}
+					],
+					"responses": {
+						"200": {
+							"description": "A paginated list of audit log entries.",
+							"content": {
+								"application/json": {
+									"schema": {
+										"type": "object",
+										"properties": {
+											"data": {
+												"type": "array",
+												"description": "List of audit log entries for the current page.",
+												"items": {
+													"type": "object",
+													"properties": {
+														"id": {
+															"type": "string",
+															"description": "Unique entry ID (UUID)."
+														},
+														"action": {
+															"type": "string",
+															"description": "Action key, e.g. `repository_create`."
+														},
+														"actionLabel": {
+															"type": "string",
+															"description": "Human-readable action label, e.g. `Added repository`."
+														},
+														"resourceType": {
+															"type": "string",
+															"description": "Resource type key, e.g. `repository`."
+														},
+														"resourceTypeLabel": {
+															"type": "string",
+															"description": "Human-readable resource type label, e.g. `Repository`."
+														},
+														"resourceSummary": {
+															"type": "string",
+															"description": "Short description of the affected resource."
+														},
+														"actor": {
+															"type": "object",
+															"description": "The user or system that performed the action.",
+															"properties": {
+																"name": {
+																	"type": "string",
+																	"description": "Display name of the actor."
+																},
+																"subtitle": {
+																	"type": "string",
+																	"description": "Actor role label when available, otherwise the underlying actor type."
+																},
+																"isBot": {
+																	"type": "boolean",
+																	"description": "Whether the actor is a bot."
+																},
+																"avatarUrl": {
+																	"type": "string",
+																	"nullable": true,
+																	"description": "Avatar URL, if available."
+																}
+															},
+															"required": ["name", "subtitle", "isBot", "avatarUrl"]
+														},
+														"metadata": {
+															"type": "object",
+															"nullable": true,
+															"description": "Action-specific payload. Contents vary by action type."
+														},
+														"ipAddress": {
+															"type": "string",
+															"nullable": true,
+															"description": "IP address of the request that triggered the action."
+														},
+														"createdAt": {
+															"type": "string",
+															"format": "date-time",
+															"description": "ISO 8601 timestamp of when the action occurred."
+														},
+														"relativeTime": {
+															"type": "string",
+															"description": "Human-readable relative time, e.g. `1d ago`."
+														}
+													},
+													"required": ["id", "action", "actionLabel", "resourceType", "resourceTypeLabel", "resourceSummary", "actor", "metadata", "ipAddress", "createdAt", "relativeTime"]
+												}
+											},
+											"pagination": {
+												"type": "object",
+												"description": "Pagination metadata.",
+												"properties": {
+													"page": {
+														"type": "integer",
+														"description": "Current page number."
+													},
+													"page_size": {
+														"type": "integer",
+														"description": "Number of results per page."
+													},
+													"total_count": {
+														"type": "integer",
+														"description": "Total number of matching entries."
+													},
+													"total_pages": {
+														"type": "integer",
+														"description": "Total number of pages."
+													},
+													"has_next_page": {
+														"type": "boolean",
+														"description": "Whether a next page is available."
+													},
+													"has_previous_page": {
+														"type": "boolean",
+														"description": "Whether a previous page is available."
+													}
+												},
+												"required": ["page", "page_size", "total_count", "total_pages", "has_next_page", "has_previous_page"]
+											},
+											"filter_options": {
+												"type": "object",
+												"description": "Distinct action and resource type values present in the organization's log, useful for building filter UIs.",
+												"properties": {
+													"actions": {
+														"type": "array",
+														"items": {
+															"type": "object",
+															"properties": {
+																"value": { "type": "string", "description": "Action key." },
+																"label": { "type": "string", "description": "Human-readable label." },
+																"count": { "type": "integer", "description": "Number of matching entries." }
+															},
+															"required": ["value", "label", "count"]
+														}
+													},
+													"resource_types": {
+														"type": "array",
+														"items": {
+															"type": "object",
+															"properties": {
+																"value": { "type": "string", "description": "Resource type key." },
+																"label": { "type": "string", "description": "Human-readable label." },
+																"count": { "type": "integer", "description": "Number of matching entries." }
+															},
+															"required": ["value", "label", "count"]
+														}
+													}
+												},
+												"required": ["actions", "resource_types"]
+											}
+										},
+										"required": ["data", "pagination", "filter_options"]
+									}
+								}
+							}
+						},
+						"400": {
+							"description": "Invalid request. Possible error codes: `INVALID_PARAMETER`, `TOO_MANY_ITEMS`, `INVALID_DATE_RANGE`."
+						},
+						"401": {
+							"description": "Invalid or missing API key."
+						},
+						"403": {
+							"description": "Access denied. Possible error codes: `NOT_ADMIN`, `KEY_TYPE_FORBIDDEN`, `ENTERPRISE_PLAN_REQUIRED`."
+						},
+						"410": {
+							"description": "Legacy API key used (`LEGACY_API_KEY`)."
+						},
+						"429": {
+							"description": "Rate limit exceeded (`RATE_LIMIT_EXCEEDED`)."
+						},
+						"500": {
+							"description": "Internal server error (`INTERNAL_ERROR`)."
+						}
+					}
+				}
+			},
+		"/v1/roles": {
+			"get": {
+				"operationId": "list-roles",
+				"summary": "List organization roles",
+				"description": "Lists built-in roles and Enterprise custom roles for the authenticated organization.",
+				"tags": ["Role Management"],
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "org_id",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Required when authenticating with a workspace-scoped API token: the git-provider organization id to target within the token's workspace. Ignored for organization and self-hosted keys."
+					},
+					{
+						"in": "query",
+						"name": "role_type",
+						"schema": {
+							"type": "string",
+							"enum": ["all", "system", "custom"],
+							"default": "all"
+						},
+						"description": "Optional role type filter."
+					},
+					{
+						"in": "query",
+						"name": "include_permissions",
+						"schema": {
+							"type": "boolean",
+							"default": false
+						}
+					},
+					{
+						"in": "query",
+						"name": "include_user_count",
+						"schema": {
+							"type": "boolean",
+							"default": true
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Successfully retrieved roles"
+					}
+				}
+			},
+			"post": {
+				"operationId": "create-role",
+				"summary": "Create a custom role",
+				"description": "Creates an Enterprise custom role. If is_default is true, the new role becomes the subscription default and the previous default is cleared.",
+				"tags": ["Role Management"],
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": ["name"],
+								"properties": {
+									"org_id": {
+										"type": "string",
+										"description": "Required when authenticating with a workspace-scoped API token: the git-provider organization id to target within the token's workspace. Ignored for organization and self-hosted keys."
+									},
+									"name": {
+										"type": "string",
+										"example": "Security Reviewer"
+									},
+									"description": {
+										"type": "string"
+									},
+									"is_default": {
+										"type": "boolean",
+										"default": false
+									},
+									"duplicate_from": {
+										"type": "string",
+										"description": "Role ID to copy permissions from. Defaults to cr_member when permissions are omitted."
+									},
+									"permissions": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"resource_id": {
+													"type": "string",
+													"example": "user_management"
+												},
+												"access_type": {
+													"type": "string",
+													"enum": ["read", "write", "delete"]
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Custom role created"
+					}
+				}
+			},
+			"x-generated": true
+		},
+		"/v1/roles/permissions": {
+			"get": {
+				"operationId": "list-role-permission-options",
+				"summary": "List role permission options",
+				"description": "Lists the valid resource_id and access_type values that can be used when creating or updating Enterprise custom roles.",
+				"tags": ["Role Management"],
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "org_id",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Required when authenticating with a workspace-scoped API token: the git-provider organization id to target within the token's workspace. Ignored for organization and self-hosted keys."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Successfully retrieved role permission options",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["resource_ids", "access_types"],
+									"properties": {
+										"resource_ids": {
+											"type": "array",
+											"items": {
+												"type": "string"
+											},
+											"example": ["repository_management", "user_management", "role_management"]
+										},
+										"access_types": {
+											"type": "array",
+											"items": {
+												"type": "string",
+												"enum": ["read", "write", "delete"]
+											},
+											"example": ["read", "write", "delete"]
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			"x-generated": true
+		},
+		"/v1/roles/{roleId}": {
+			"get": {
+				"operationId": "get-role",
+				"summary": "Get role details",
+				"description": "Retrieves one built-in or Enterprise custom role.",
+				"tags": ["Role Management"],
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "roleId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "org_id",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Required when authenticating with a workspace-scoped API token: the git-provider organization id to target within the token's workspace. Ignored for organization and self-hosted keys."
+					},
+					{
+						"in": "query",
+						"name": "include_permissions",
+						"schema": {
+							"type": "boolean",
+							"default": true
+						}
+					},
+					{
+						"in": "query",
+						"name": "include_user_count",
+						"schema": {
+							"type": "boolean",
+							"default": true
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Successfully retrieved role"
+					}
+				}
+			},
+			"patch": {
+				"operationId": "update-role",
+				"summary": "Update a custom role",
+				"description": "Updates custom role metadata, permissions, or default status. System roles are immutable. Omitting is_default preserves the current default status; true clears any previous default; false unsets this role as default.",
+				"tags": ["Role Management"],
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "roleId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"org_id": {
+										"type": "string",
+										"description": "Required when authenticating with a workspace-scoped API token: the git-provider organization id to target within the token's workspace. Ignored for organization and self-hosted keys."
+									},
+									"name": {
+										"type": "string"
+									},
+									"description": {
+										"type": "string",
+										"nullable": true
+									},
+									"is_default": {
+										"type": "boolean"
+									},
+									"permissions": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"resource_id": {
+													"type": "string"
+												},
+												"access_type": {
+													"type": "string",
+													"enum": ["read", "write", "delete"]
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Custom role updated"
+					}
+				}
+			},
+			"delete": {
+				"operationId": "delete-role",
+				"summary": "Delete a custom role",
+				"description": "Deletes an Enterprise custom role when it is not assigned to any organization members. System roles cannot be deleted.",
+				"tags": ["Role Management"],
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "roleId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "org_id",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Required when authenticating with a workspace-scoped API token: the git-provider organization id to target within the token's workspace. Ignored for organization and self-hosted keys."
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "Custom role deleted"
+					}
+				}
+			},
+			"x-generated": true
+		},
+		"/v1/learnings": {
+			"get": {
+				"operationId": "learnings-list",
+				"summary": "List learnings for an organization",
+				"description": "Programmatic access to an organization's CodeRabbit learnings. Returns paginated JSON or a CSV download. Enterprise plan only. Mirrors the auth, rate-limit and response-size contract of the Metrics public API.",
+				"tags": ["Learnings"],
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "header",
+						"name": "x-coderabbitai-api-key",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "API key for authentication"
+					},
+					{
+						"in": "query",
+						"name": "org_id",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Workspace-scoped API tokens only. When provided, scopes learnings to that single git-provider organization within the token's workspace; when omitted, aggregates every organization in the workspace. Ignored for organization and self-hosted keys."
+					},
+					{
+						"in": "query",
+						"name": "repository_ids",
+						"schema": {
+							"type": "string",
+							"example": "1027529638,987654321"
+						},
+						"description": "Comma-separated provider repository IDs (max 10)."
+					},
+					{
+						"in": "query",
+						"name": "user_ids",
+						"schema": {
+							"type": "string",
+							"example": "87397876,12345678"
+						},
+						"description": "Comma-separated provider user IDs (max 10)."
+					},
+					{
+						"in": "query",
+						"name": "search",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Case-insensitive substring search over learning text."
+					},
+					{
+						"in": "query",
+						"name": "file_paths",
+						"schema": {
+							"type": "string",
+							"example": "src/api.ts,src/auth.ts"
+						},
+						"description": "Comma-separated exact file paths (max 10)."
+					},
+					{
+						"in": "query",
+						"name": "stat_filter",
+						"schema": {
+							"type": "string",
+							"enum": ["total", "active", "never_used", "created_this_week"],
+							"default": "total"
+						},
+						"description": "Filter by recent usage, zero usage, or creation in the last seven days."
+					},
+					{
+						"in": "query",
+						"name": "organization_ids",
+						"schema": {
+							"type": "string",
+							"example": "184456712,103539130"
+						},
+						"description": "Comma-separated provider organization IDs (max 10). Self-hosted instances only."
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 1000,
+							"default": 1000
+						},
+						"description": "Maximum number of records to return."
+					},
+					{
+						"in": "query",
+						"name": "cursor",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Pagination cursor returned as `next_cursor` on the previous page."
+					},
+					{
+						"in": "query",
+						"name": "format",
+						"schema": {
+							"type": "string",
+							"enum": ["json", "csv"],
+							"default": "json"
+						},
+						"description": "Response format. `json` (default) returns paginated JSON; `csv` returns a CSV download."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Successfully retrieved learnings.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["data", "next_cursor"],
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"required": ["id", "learning", "repository_name", "author_username", "created_at", "updated_at", "usage_count"],
+												"properties": {
+													"id": {
+														"type": "string",
+														"description": "Unique identifier for the learning."
+													},
+													"learning": {
+														"type": "string"
+													},
+													"organization_id": {
+														"type": "string",
+														"nullable": true,
+														"description": "Git provider organization ID."
+													},
+													"organization_name": {
+														"type": "string",
+														"nullable": true
+													},
+													"repository_id": {
+														"type": "string",
+														"nullable": true,
+														"description": "Git provider repository ID."
+													},
+													"repository_name": {
+														"type": "string"
+													},
+													"author_id": {
+														"type": "string",
+														"nullable": true,
+														"description": "Git provider user ID of the learning author."
+													},
+													"author_username": {
+														"type": "string"
+													},
+													"file": {
+														"type": "string",
+														"nullable": true
+													},
+													"source_url": {
+														"type": "string",
+														"nullable": true,
+														"description": "URL of the PR comment where the learning was captured."
+													},
+													"pull_request": {
+														"type": "integer",
+														"nullable": true,
+														"description": "Source pull request or merge request number."
+													},
+													"created_at": {
+														"type": "string",
+														"format": "date-time"
+													},
+													"updated_at": {
+														"type": "string",
+														"format": "date-time"
+													},
+													"usage_count": {
+														"type": "integer"
+													},
+													"last_used_at": {
+														"type": "string",
+														"format": "date-time",
+														"nullable": true
+													}
+												}
+											}
+										},
+										"next_cursor": {
+											"type": "string",
+											"nullable": true
+										}
+									}
+								}
+							},
+							"text/csv": {
+								"schema": {
+									"type": "string",
+									"format": "binary",
+									"description": "CSV file download."
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Bad request — invalid parameters or cursor."
+					},
+					"401": {
+						"description": "Unauthorized — invalid or inactive API key."
+					},
+					"403": {
+						"description": "Forbidden — Enterprise plan required or agentic key not allowed."
+					},
+					"404": {
+						"description": "Not found — self-hosted instance has no organizations matching the supplied `organization_ids`. Returned only for self-hosted callers when scope resolution narrows to an empty set."
+					},
+					"413": {
+						"description": "Response exceeds 16 MB. Add filters or reduce `limit`."
+					},
+					"429": {
+						"description": "Rate limit exceeded."
+					},
+					"500": {
+						"description": "Internal server error."
+					}
+				}
+			},
+			"x-generated": true
+		},
+		"/v1/organizations": {
+			"get": {
+				"operationId": "organizations-list",
+				"summary": "List onboarded organizations",
+				"description": "Lists active organizations in CodeRabbit. Organization API keys return their bound organization; workspace API keys return all active organizations in the workspace. Enterprise plan only.",
+				"tags": ["Organizations"],
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "header",
+						"name": "x-coderabbitai-api-key",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "User-scoped organization or workspace API key."
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100,
+							"default": 100
+						}
+					},
+					{
+						"in": "query",
+						"name": "cursor",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Opaque pagination cursor returned by the previous page."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Successfully listed onboarded organizations.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["organizations", "next_cursor"],
+									"properties": {
+										"organizations": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"required": ["id", "name", "provider", "provider_organization_id"],
+												"properties": {
+													"id": {
+														"type": "string",
+														"format": "uuid",
+														"description": "CodeRabbit organization ID used by nested organization endpoints."
+													},
+													"name": {
+														"type": "string"
+													},
+													"provider": {
+														"type": "string",
+														"example": "github"
+													},
+													"provider_organization_id": {
+														"type": "string",
+														"description": "Organization identifier assigned by the git provider."
+													}
+												}
+											}
+										},
+										"next_cursor": {
+											"type": "string",
+											"nullable": true
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid pagination parameters."
+					},
+					"401": {
+						"description": "Invalid or inactive API key."
+					},
+					"403": {
+						"description": "Enterprise plan, workspace administrator, key type, or RBAC requirement not met."
+					},
+					"410": {
+						"description": "Legacy organization API key."
+					},
+					"429": {
+						"description": "Rate limit exceeded."
+					},
+					"500": {
+						"description": "Internal server error."
+					}
+				}
+			},
+			"x-generated": true
+		},
+		"/v1/organizations/{organization_id}/repositories": {
+			"get": {
+				"operationId": "organization-repositories-list",
+				"summary": "List onboarded repositories for an organization",
+				"description": "Lists repositories that CodeRabbit currently records as active for an organization. The organization_id is the CodeRabbit organization UUID returned by GET /organizations. Enterprise plan only.",
+				"tags": ["Organizations"],
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "header",
+						"name": "x-coderabbitai-api-key",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "User-scoped organization or workspace API key."
+					},
+					{
+						"in": "path",
+						"name": "organization_id",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100,
+							"default": 100
+						}
+					},
+					{
+						"in": "query",
+						"name": "cursor",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Opaque pagination cursor returned by the previous page."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Successfully listed onboarded repositories.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["repositories", "next_cursor"],
+									"properties": {
+										"repositories": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"required": ["repository_id", "repository_name", "private", "group_path", "is_installed"],
+												"properties": {
+													"repository_id": {
+														"type": "string",
+														"description": "Repository identifier assigned by the git provider."
+													},
+													"repository_name": {
+														"type": "string",
+														"example": "acme/backend"
+													},
+													"private": {
+														"type": "boolean"
+													},
+													"group_path": {
+														"type": "string",
+														"nullable": true,
+														"description": "Git provider group or subgroup path, when available."
+													},
+													"is_installed": {
+														"type": "boolean",
+														"description": "Whether CodeRabbit's cached state records an active installation for the repository."
+													}
+												}
+											}
+										},
+										"next_cursor": {
+											"type": "string",
+											"nullable": true
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid organization ID or pagination parameters."
+					},
+					"401": {
+						"description": "Invalid or inactive API key."
+					},
+					"403": {
+						"description": "Enterprise plan, workspace administrator, key type, or RBAC requirement not met."
+					},
+					"404": {
+						"description": "Organization not found in the API key scope."
+					},
+					"410": {
+						"description": "Legacy organization API key."
+					},
+					"429": {
+						"description": "Rate limit exceeded."
+					},
+					"500": {
+						"description": "Internal server error."
+					}
+				}
+			},
+			"x-generated": true
+		},
+		"/v1/metrics/mcp": {
+			"get": {
+				"operationId": "mcp-metrics",
+				"summary": "Get MCP server usage by pull request",
+				"description": "Returns one JSON row per merged, reviewed pull request that used MCP, with MCP servers and tools nested under servers. Join to GET /v1/metrics/reviews on pr_url. Counts are best-effort usage telemetry. Access is controlled by an organization-scoped feature flag. Pagination is in write order rather than by merge date, so a pull request written after your cursor already passed its merge date (a backfill) still appears on a later page instead of being silently skipped.",
+				"tags": ["Metrics"],
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "header",
+						"name": "x-coderabbitai-api-key",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "org_id",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Workspace API keys only; scopes the request to one provider organization."
+					},
+					{
+						"in": "query",
+						"name": "start_date",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date"
+						}
+					},
+					{
+						"in": "query",
+						"name": "end_date",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date"
+						}
+					},
+					{
+						"in": "query",
+						"name": "organization_ids",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Comma-separated provider organization IDs. Self-hosted only; maximum 10."
+					},
+					{
+						"in": "query",
+						"name": "repository_ids",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Comma-separated provider repository IDs; maximum 10."
+					},
+					{
+						"in": "query",
+						"name": "user_ids",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Comma-separated provider PR-author IDs; maximum 10."
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 1000,
+							"default": 1000
+						}
+					},
+					{
+						"in": "query",
+						"name": "cursor",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Opaque next_cursor from the previous response."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "MCP server usage for merged pull requests",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["data", "next_cursor"],
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"required": ["pr_url", "organization_id", "repository_id", "author_id", "merged_at", "servers"],
+												"properties": {
+													"pr_url": {
+														"type": "string"
+													},
+													"organization_id": {
+														"type": "string"
+													},
+													"repository_id": {
+														"type": "string"
+													},
+													"author_id": {
+														"type": "string",
+														"nullable": true
+													},
+													"merged_at": {
+														"type": "string",
+														"format": "date-time"
+													},
+													"servers": {
+														"type": "array",
+														"description": "MCP servers used during the review.",
+														"items": {
+															"type": "object",
+															"required": ["server_name", "insight_count", "tools"],
+															"properties": {
+																"server_name": {
+																	"type": "string",
+																	"description": "Most recently recorded MCP server name for this PR, or the current connection name/internal ID for historical rows without a snapshot."
+																},
+																"insight_count": {
+																	"type": "integer",
+																	"description": "Best-effort count of review insights that cited this server as a source."
+																},
+																"tools": {
+																	"type": "array",
+																	"items": {
+																		"type": "object",
+																		"required": ["tool_name", "call_count"],
+																		"properties": {
+																			"tool_name": {
+																				"type": "string",
+																				"description": "Original MCP tool name when recorded; historical rows may contain the previously stored agent-facing name."
+																			},
+																			"call_count": {
+																				"type": "integer",
+																				"description": "Recorded calls for this tool."
+																			}
+																		}
+																	}
+																}
+															}
+														}
+													}
+												}
+											}
+										},
+										"next_cursor": {
+											"type": "string",
+											"nullable": true
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid query parameters, or the response exceeds 16 MB (RESPONSE_TOO_LARGE). Add filters or reduce the limit."
+					},
+					"401": {
+						"description": "Unauthorized - invalid or missing API key"
+					},
+					"403": {
+						"description": "Forbidden - Enterprise plan required or agentic key not allowed"
+					},
+					"404": {
+						"description": "No matching organization exists"
+					},
+					"429": {
+						"description": "Rate limit exceeded"
+					},
+					"500": {
+						"description": "Internal server error"
+					},
+					"503": {
+						"description": "Isolated metrics are preparing (METRICS_PREPARING); retry the same request",
+						"headers": {
+							"Retry-After": {
+								"schema": {
+									"type": "integer"
+								},
+								"description": "Seconds to wait before retrying"
+							}
+						}
+					}
+				}
+			},
+			"x-generated": true
+		},
+		"/v1/security/scans/code": {
+			"get": {
+				"operationId": "security-scans-code-list",
+				"summary": "List or export AI Deep Scan code findings",
+				"description": "Returns cursor-paginated JSON by default. CSV and SARIF formats download the complete repository/scan inventory (up to 50,000 records and 16 MB). Code findings include saved reachability evidence as raw call-stack strings and explanation text. The call-stack array may combine frames from multiple paths; an empty array means no stack was captured, not that the finding is unreachable. Available on all plans with a non-agentic API key and security:read permission. No Security add-on or trial is required. Other APIs retain their existing plan requirements. JSON rows may include scan_provenance with saved scope and evidenceStatus not_loaded. CSV scan_provenance contains compact scanId, primary repositoryId/revision, selectedContextRepositoryIds, and evidenceStatus. SARIF result properties.scanProvenance contains the full provenance, including available evidence. Context repositories do not own findings or coverage.",
+				"tags": ["Security"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/SecurityOrgId"
+					},
+					{
+						"$ref": "#/components/parameters/SecurityRepoId"
+					},
+					{
+						"$ref": "#/components/parameters/SecurityScanId"
+					},
+					{
+						"$ref": "#/components/parameters/SecurityCodeState"
+					},
+					{
+						"$ref": "#/components/parameters/SecurityLimit"
+					},
+					{
+						"$ref": "#/components/parameters/SecurityCursor"
+					},
+					{
+						"in": "query",
+						"name": "format",
+						"schema": {
+							"type": "string",
+							"enum": ["json", "csv", "sarif"],
+							"default": "json"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Paginated JSON or a full-inventory download.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["data", "next_cursor"],
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/SecurityCodeFinding"
+											}
+										},
+										"next_cursor": {
+											"type": "string",
+											"nullable": true
+										}
+									}
+								}
+							},
+							"text/csv": {
+								"schema": {
+									"type": "string",
+									"format": "binary"
+								}
+							},
+							"application/sarif+json": {
+								"schema": {
+									"type": "string",
+									"format": "binary"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid parameter or cursor."
+					},
+					"401": {
+						"description": "Invalid or inactive API key."
+					},
+					"403": {
+						"description": "Forbidden key type, missing security:read, or repository outside scope."
+					},
+					"410": {
+						"description": "Legacy organization API keys are no longer accepted."
+					},
+					"413": {
+						"description": "More than 50,000 records or more than 16 MB. Narrow with repo_id or scan_id."
+					},
+					"429": {
+						"description": "Rate limit exceeded."
+					},
+					"500": {
+						"description": "Internal server error."
+					}
+				}
+			},
+			"x-generated": true
+		},
+		"/v1/learnings/{learning_id}": {
+			"patch": {
+				"operationId": "learnings-update",
+				"summary": "Update a learning",
+				"description": "Replaces canonical learning text and refreshes its LanceDB embedding. The text is trimmed and recognized credentials are redacted before persistence and indexing. Enterprise plan and learning:write permission required.",
+				"tags": ["Learnings"],
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "learning_id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Learning ID returned by GET /v1/learnings."
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": ["learning"],
+								"additionalProperties": false,
+								"properties": {
+									"org_id": {
+										"type": "string",
+										"description": "Required for workspace API keys; the git-provider organization ID to target. Ignored for organization keys."
+									},
+									"learning": {
+										"type": "string",
+										"minLength": 1
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "Learning updated and, when shared, reindexed."
+					},
+					"400": {
+						"description": "Invalid learning ID, text, request body, or missing workspace org_id."
+					},
+					"401": {
+						"description": "Invalid key or missing authenticated identity."
+					},
+					"403": {
+						"description": "Enterprise plan or learning:write permission required; agentic keys are forbidden."
+					},
+					"404": {
+						"description": "Learning not found in the target organization, or the organization is not in the workspace."
+					},
+					"410": {
+						"description": "Legacy organization keys cannot update learnings."
+					},
+					"429": {
+						"description": "Rate limit exceeded."
+					},
+					"500": {
+						"description": "PostgreSQL, LanceDB, or internal service update failed."
+					}
+				}
+			},
+			"delete": {
+				"operationId": "learnings-delete",
+				"summary": "Delete a learning",
+				"description": "Idempotently deletes a canonical learning from PostgreSQL, the LanceDB knowledge index, and patterned-learning caches. Enterprise plan and learning:write permission required.",
+				"tags": ["Learnings"],
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "learning_id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Learning ID returned by GET /v1/learnings."
+					},
+					{
+						"in": "query",
+						"name": "org_id",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Required for workspace API keys; the git-provider organization ID to target. Ignored for organization keys."
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "Learning deleted or already absent."
+					},
+					"400": {
+						"description": "Invalid learning ID or missing workspace org_id."
+					},
+					"401": {
+						"description": "Invalid key or missing authenticated identity."
+					},
+					"403": {
+						"description": "Enterprise plan or learning:write permission required; agentic keys are forbidden."
+					},
+					"404": {
+						"description": "The selected organization is not in the workspace."
+					},
+					"410": {
+						"description": "Legacy organization keys cannot delete learnings."
+					},
+					"429": {
+						"description": "Rate limit exceeded."
+					},
+					"500": {
+						"description": "PostgreSQL, LanceDB, or internal service deletion failed."
+					}
+				}
+			},
+			"x-generated": true
+		},
+		"/v1/metrics/review-comments": {
+			"get": {
+				"operationId": "review-comment-metrics",
+				"summary": "Get review comment metrics for merged pull requests",
+				"description": "Returns JSON with one entry per merged pull request that has stored CodeRabbit review comment metrics. The inclusive UTC date window selects pull requests by merge date, regardless of when comments were posted. Pull requests without stored comments are excluded before pagination. Pagination is in write order rather than by merge date, so a pull request written after your cursor already passed its merge date (a backfill, or a reopen/reclose) still appears on a later page instead of being silently skipped. Each nested comment entry represents a stored finding; a comment URL may occur more than once when the posted comment contains multiple findings. Comment text is not returned. Unknown query parameters, including format and status, are rejected. Available on the Enterprise plan. Self-hosted CodeRabbit deployments can use this API when configured to send metrics to CodeRabbit Cloud. Requests include all organizations authorized by the API token unless narrowed by an organization selector.",
+				"tags": ["Metrics"],
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "header",
+						"name": "x-coderabbitai-api-key",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "API key for authentication"
+					},
+					{
+						"in": "query",
+						"name": "org_id",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Workspace-scoped API tokens only. Selects one provider organization in the token's workspace. When omitted, includes all organizations authorized by the workspace token. Ignored for organization-scoped and Git-provider instance-scoped keys."
+					},
+					{
+						"in": "query",
+						"name": "start_date",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date",
+							"example": "2026-09-01"
+						},
+						"description": "Inclusive UTC merge date in YYYY-MM-DD format"
+					},
+					{
+						"in": "query",
+						"name": "end_date",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "date",
+							"example": "2026-09-09"
+						},
+						"description": "Inclusive UTC merge date in YYYY-MM-DD format; must not precede start_date"
+					},
+					{
+						"in": "query",
+						"name": "repository_ids",
+						"schema": {
+							"type": "string",
+							"example": "1027529638,987654321"
+						},
+						"description": "Comma-separated provider repository IDs. Maximum 10."
+					},
+					{
+						"in": "query",
+						"name": "user_ids",
+						"schema": {
+							"type": "string",
+							"example": "87397876,12345678"
+						},
+						"description": "Comma-separated provider PR author IDs from stored PR metrics. Maximum 10."
+					},
+					{
+						"in": "query",
+						"name": "organization_ids",
+						"schema": {
+							"type": "string",
+							"example": "184456712,103539130"
+						},
+						"description": "Comma-separated provider organization IDs for self-hosted Git provider instance-scoped API keys. Maximum 10 input values. When omitted, includes all authorized organizations in the instance. The filter cannot expand the scope authorized by the API token. Not supported for organization-scoped or workspace-scoped API keys."
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 1000,
+							"default": 1000
+						},
+						"description": "Maximum number of pull requests per page, not the number of nested comments"
+					},
+					{
+						"in": "query",
+						"name": "cursor",
+						"schema": {
+							"type": "string"
+						},
+						"description": "Opaque next_cursor from the previous response. Keep the same date window and filters when fetching subsequent pages."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Review comment metrics for eligible merged pull requests",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["data", "next_cursor"],
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"required": ["pr_url", "organization_id", "repository_id", "author_id", "merged_at", "coderabbit_comments"],
+												"properties": {
+													"pr_url": {
+														"type": "string",
+														"example": "https://github.com/org/repo/pull/123"
+													},
+													"organization_id": {
+														"type": "string",
+														"description": "Provider organization ID"
+													},
+													"repository_id": {
+														"type": "string",
+														"description": "Provider repository ID"
+													},
+													"author_id": {
+														"type": "string",
+														"nullable": true,
+														"description": "Provider PR author ID from stored PR metrics; null when unavailable"
+													},
+													"merged_at": {
+														"type": "string",
+														"format": "date-time",
+														"nullable": true,
+														"description": "Pull request merge timestamp"
+													},
+													"coderabbit_comments": {
+														"type": "array",
+														"minItems": 1,
+														"description": "Stored findings; multiple entries may share the same posted comment URL",
+														"items": {
+															"type": "object",
+															"required": ["url", "severity", "category", "accepted"],
+															"properties": {
+																"url": {
+																	"type": "string",
+																	"description": "Link to the posted review comment; not a unique finding identifier"
+																},
+																"severity": {
+																	"type": "string",
+																	"nullable": true,
+																	"enum": ["critical", "major", "minor", "trivial", "info", null],
+																	"description": "Finding severity; null for absent, unknown, or none values"
+																},
+																"category": {
+																	"type": "string",
+																	"nullable": true,
+																	"enum": ["data_integrity_and_integration", "functional_correctness", "maintainability_and_code_quality", "performance_and_scalability", "security_and_privacy", "stability_and_availability", null],
+																	"description": "Content category, not the issue type; null when absent or unknown"
+																},
+																"accepted": {
+																	"type": "boolean",
+																	"nullable": true,
+																	"description": "Stored resolution outcome from AI detection or user confirmation, not necessarily acceptance by the PR author. False is not proof of rejection; null means unknown. This value can change after the comment is posted."
+																}
+															}
+														}
+													}
+												}
+											}
+										},
+										"next_cursor": {
+											"type": "string",
+											"nullable": true,
+											"description": "Opaque cursor for the next page; null when no more eligible pull requests remain"
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid dates, filters, limit, cursor, or unsupported query parameters"
+					},
+					"401": {
+						"description": "Invalid or missing API key"
+					},
+					"403": {
+						"description": "Enterprise access required, agentic key forbidden, organization outside the permitted scope, or review comment metrics unavailable for an organization in the requested scope."
+					},
+					"404": {
+						"description": "Selected organization not found in the workspace, or no organizations match the self-hosted Git provider instance filter"
+					},
+					"413": {
+						"description": "JSON response exceeds 16 MiB. Reduce limit, narrow the date window, or add filters. A single pull request's comments cannot be split across pages; excluding that pull request may be necessary."
+					},
+					"429": {
+						"description": "Metrics API rate limit exceeded",
+						"headers": {
+							"Retry-After": {
+								"schema": {
+									"type": "integer"
+								},
+								"description": "Seconds to wait before retrying"
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error"
+					},
+					"503": {
+						"description": "Review comment metrics temporarily unavailable; retry later",
+						"headers": {
+							"Retry-After": {
+								"schema": {
+									"type": "integer"
+								},
+								"description": "Seconds to wait when isolated metrics are preparing (METRICS_PREPARING)"
+							}
+						}
+					}
+				}
+			},
+			"x-generated": true
+		}
+	},
+	"components": {
+		"securitySchemes": {
+			"ApiKeyAuth": {
+				"type": "apiKey",
+				"in": "header",
+				"name": "x-coderabbitai-api-key",
+				"description": "API key for authentication. You can create an API key from the CodeRabbit dashboard."
+			}
+		},
+		"schemas": {
+			"ReviewMetric": {
+				"type": "object",
+				"properties": {
+					"pr_url": {
+						"type": "string",
+						"description": "Full URL to the pull request"
+					},
+					"author_id": {
+						"type": "string",
+						"description": "Unique identifier assigned by Git provider"
+					},
+					"author_username": {
+						"type": "string",
+						"description": "Username of the PR author"
+					},
+					"organization_id": {
+						"type": "string",
+						"description": "Unique identifier for the organization assigned by Git provider"
+					},
+					"organization_name": {
+						"type": "string",
+						"description": "Organization name"
+					},
+					"repository_id": {
+						"type": "string",
+						"description": "Unique identifier assigned by Git provider"
+					},
+					"repository_name": {
+						"type": "string",
+						"description": "Repository name"
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time",
+						"description": "When the PR was created"
+					},
+					"ready_for_review_at": {
+						"type": "string",
+						"format": "date-time",
+						"description": "When the PR became ready for review. Matches created_at if the PR was never a draft, and may be null for older records where this timestamp was not collected."
+					},
+					"first_human_review_at": {
+						"type": "string",
+						"format": "date-time",
+						"description": "When the first human review was submitted"
+					},
+					"last_commit_at": {
+						"type": "string",
+						"format": "date-time",
+						"description": "When the last non-merge, non-rebased commit was pushed"
+					},
+					"merged_at": {
+						"type": "string",
+						"format": "date-time",
+						"description": "When the PR was merged"
+					},
+					"status": {
+						"type": "string",
+						"enum": ["merged", "closed"],
+						"description": "Current pull request status"
+					},
+					"review_iterations": {
+						"type": "integer",
+						"minimum": 0,
+						"description": "Number of CodeRabbit review events recorded for the pull request"
+					},
+					"estimated_complexity": {
+						"type": "integer",
+						"description": "Complexity score (1-5)"
+					},
+					"estimated_review_minutes": {
+						"type": "integer",
+						"description": "Estimated time to review in minutes"
+					},
+					"coderabbit_comments": {
+						"type": "object",
+						"description": "CodeRabbit comment metrics grouped by total, severity, and category",
+						"properties": {
+							"total": {
+								"$ref": "#/components/schemas/CommentCount"
+							},
+							"severity": {
+								"type": "object",
+								"properties": {
+									"critical": {
+										"$ref": "#/components/schemas/CommentCount"
+									},
+									"major": {
+										"$ref": "#/components/schemas/CommentCount"
+									},
+									"minor": {
+										"$ref": "#/components/schemas/CommentCount"
+									},
+									"trivial": {
+										"$ref": "#/components/schemas/CommentCount"
+									},
+									"info": {
+										"$ref": "#/components/schemas/CommentCount"
+									}
+								}
+							},
+							"category": {
+								"type": "object",
+								"properties": {
+									"security_and_privacy": {
+										"$ref": "#/components/schemas/CommentCount"
+									},
+									"performance_and_scalability": {
+										"$ref": "#/components/schemas/CommentCount"
+									},
+									"functional_correctness": {
+										"$ref": "#/components/schemas/CommentCount"
+									},
+									"maintainability_and_code_quality": {
+										"$ref": "#/components/schemas/CommentCount"
+									},
+									"data_integrity_and_integration": {
+										"$ref": "#/components/schemas/CommentCount"
+									},
+									"stability_and_availability": {
+										"$ref": "#/components/schemas/CommentCount"
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			"CommentCount": {
+				"type": "object",
+				"properties": {
+					"posted": {
+						"type": "integer",
+						"description": "Number of comments posted"
+					},
+					"accepted": {
+						"type": "integer",
+						"description": "Number of comments accepted"
+					}
+				}
+			},
+			"Error": {
+				"type": "object",
+				"properties": {
+					"errors": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"code": {
+									"type": "string"
+								},
+								"message": {
+									"type": "string"
+								}
+							},
+							"required": ["code", "message"]
+						}
+					}
+				},
+				"required": ["errors"]
+			},
+			"ApiError": {
+				"type": "object",
+				"description": "Standard API error response",
+				"properties": {
+					"error": {
+						"type": "object",
+						"properties": {
+							"code": {
+								"type": "string",
+								"description": "Error code identifier"
+							},
+							"message": {
+								"type": "string",
+								"description": "Human-readable error message"
+							}
+						},
+						"required": ["code", "message"],
+						"additionalProperties": false
+					}
+				},
+				"required": ["error"],
+				"additionalProperties": false
+			},
+			"ManageSeatsRequest": {
+				"type": "object",
+				"title": "Organization / self-hosted instance key",
+				"description": "Request to manage user seats with an organization or self-hosted instance API key. Users are addressed by provider user ID.",
+				"properties": {
+					"action": {
+						"type": "string",
+						"enum": ["assign", "unassign"],
+						"description": "Action to perform"
+					},
+					"user_ids": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"description": "Array of provider user IDs",
+						"minItems": 1,
+						"maxItems": 500
+					}
+				},
+				"required": ["action", "user_ids"],
+				"additionalProperties": false
+			},
+			"ManageSeatsMembersRequest": {
+				"type": "object",
+				"title": "Workspace key",
+				"description": "Request to manage user seats with a workspace API key. Members are addressed by email or CodeRabbit user ID, and each entry declares its desired seat state.",
+				"properties": {
+					"members": {
+						"type": "array",
+						"description": "Array of members to update. Each member is identified by `email` or `cr_user_id` (at least one required; `cr_user_id` takes precedence when both are provided).",
+						"minItems": 1,
+						"maxItems": 500,
+						"items": {
+							"type": "object",
+							"description": "One member to update. Identify the member by `email` or `cr_user_id` — at least one is required, and `cr_user_id` takes precedence when both are provided.",
+							"properties": {
+								"email": {
+									"type": "string",
+									"format": "email",
+									"description": "Email address of the member (unique per workspace). The only identifier that can enroll a member not yet known to CodeRabbit."
+								},
+								"cr_user_id": {
+									"type": "string",
+									"format": "uuid",
+									"description": "CodeRabbit user ID of an existing member — the `user_id` returned by `GET /v1/users` when using a workspace key. Use it to address members who have no email. Never enrolls a new member: an unknown ID fails that entry with `USER_NOT_FOUND`."
+								},
+								"seat_assigned": {
+									"type": "boolean",
+									"description": "Desired seat state: `true` assigns a seat, `false` unassigns it. Omit to leave the member's seat unchanged."
+								},
+								"identities": {
+									"type": "array",
+									"description": "Declarative replacement of the member's full Git provider identity set. Omit to leave identities untouched; an empty array removes all identities.",
+									"items": {
+										"type": "object",
+										"properties": {
+											"provider": {
+												"type": "string",
+												"description": "Git platform provider of this identity"
+											},
+											"self_hosted_instance_url": {
+												"type": "string",
+												"description": "Host URL of the self-hosted instance this identity belongs to. Omit for cloud identities. The URL must match a self-hosted instance registered to the workspace."
+											},
+											"user_id": {
+												"type": "string",
+												"description": "Provider user ID"
+											},
+											"username": {
+												"type": "string",
+												"description": "Provider username"
+											},
+											"name": {
+												"type": "string",
+												"description": "Display name"
+											}
+										},
+										"required": ["provider", "user_id"],
+										"additionalProperties": false
+									}
+								}
+							},
+							"anyOf": [
+								{
+									"title": "Identified by email",
+									"required": ["email"]
+								},
+								{
+									"title": "Identified by cr_user_id",
+									"required": ["cr_user_id"]
+								}
+							],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["members"],
+				"additionalProperties": false
+			},
+			"ChangeRolesRequest": {
+				"type": "object",
+				"description": "Request to change user roles",
+				"properties": {
+					"role": {
+						"type": "string",
+						"enum": ["cr_admin", "cr_member"],
+						"description": "CodeRabbit user role to assign"
+					},
+					"user_ids": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"description": "Array of provider user IDs",
+						"minItems": 1,
+						"maxItems": 500
+					},
+					"org_id": {
+						"type": "string",
+						"description": "Optional organization scope for self-hosted instance API keys. Set to `ALL` (case-insensitive) to apply the role change across every active organization on the self-hosted instance in one request. Set to a provider organization ID to target one organization on the self-hosted instance. Omit `org_id` to preserve the prior single-organization behavior. The `ALL` sentinel is valid only with self-hosted instance API keys; organization, workspace, and legacy keys cannot use it."
+					}
+				},
+				"required": ["role", "user_ids"],
+				"additionalProperties": false
+			},
+			"User": {
+				"type": "object",
+				"description": "A user in the organization",
+				"properties": {
+					"user_id": {
+						"type": "string",
+						"description": "Unique identifier assigned by the Git provider"
+					},
+					"seat_assigned": {
+						"type": "boolean",
+						"description": "Whether the user has a seat assigned"
+					},
+					"role": {
+						"type": "string",
+						"description": "User role"
+					}
+				},
+				"required": ["user_id", "seat_assigned", "role"],
+				"additionalProperties": false
+			},
+			"BulkOperationResponse": {
+				"type": "object",
+				"description": "Response for bulk operations with partial success model",
+				"properties": {
+					"status": {
+						"type": "string",
+						"enum": ["success", "partial_success", "failure"],
+						"description": "Operation status: 'success' if all succeeded, 'partial_success' if some succeeded, 'failure' if all failed"
+					},
+					"succeeded": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"description": "Array of user IDs that were successfully processed"
+					},
+					"failed": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/BulkOperationFailure"
+						},
+						"description": "Array of failures with error details"
+					}
+				},
+				"required": ["status", "succeeded", "failed"],
+				"additionalProperties": false
+			},
+			"SeatAssignmentModeResponse": {
+				"type": "object",
+				"description": "Seat assignment mode for the organization",
+				"properties": {
+					"mode": {
+						"type": "string",
+						"enum": ["automatic", "manual"],
+						"description": "The current seat assignment mode. 'automatic' means new developers are auto-assigned seats when CodeRabbit is tagged; 'manual' requires admin approval."
+					}
+				},
+				"required": ["mode"],
+				"additionalProperties": false
+			},
+			"UpdateSeatAssignmentModeRequest": {
+				"type": "object",
+				"description": "Request to update the seat assignment mode",
+				"properties": {
+					"mode": {
+						"type": "string",
+						"enum": ["automatic", "manual"],
+						"description": "The seat assignment mode to set. 'automatic' auto-assigns seats when CodeRabbit is tagged; 'manual' requires admin approval."
+					}
+				},
+				"required": ["mode"],
+				"additionalProperties": false
+			},
+			"BulkOperationFailure": {
+				"type": "object",
+				"description": "Failed operation details",
+				"properties": {
+					"user_id": {
+						"type": "string",
+						"description": "Identifier that failed: a provider user ID, or the supplied `cr_user_id`/`email` when the request used a workspace API key"
+					},
+					"code": {
+						"type": "string",
+						"description": "Error code"
+					}
+				},
+				"required": ["user_id", "code"],
+				"additionalProperties": false
+			},
+			"AuditLogEntry": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"action": {
+						"type": "string",
+						"example": "repository_create"
+					},
+					"actionLabel": {
+						"type": "string",
+						"example": "Added repository"
+					},
+					"resourceType": {
+						"type": "string",
+						"example": "repository"
+					},
+					"resourceTypeLabel": {
+						"type": "string",
+						"example": "Repository"
+					},
+					"resourceSummary": {
+						"type": "string",
+						"example": "my-org/my-repo"
+					},
+					"actor": {
+						"type": "object",
+						"properties": {
+							"name": {
+								"type": "string"
+							},
+							"subtitle": {
+								"type": "string"
+							},
+							"isBot": {
+								"type": "boolean"
+							},
+							"avatarUrl": {
+								"type": "string",
+								"nullable": true
+							}
+						}
+					},
+					"metadata": {
+						"type": "object"
+					},
+					"ipAddress": {
+						"type": "string",
+						"nullable": true
+					},
+					"createdAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"relativeTime": {
+						"type": "string",
+						"example": "1d ago"
+					}
+				}
+			},
+			"FilterOption": {
+				"type": "object",
+				"properties": {
+					"value": {
+						"type": "string"
+					},
+					"label": {
+						"type": "string"
+					},
+					"count": {
+						"type": "integer"
+					}
+				}
+			},
+			"SecurityCodeFinding": {
+				"type": "object",
+				"required": ["id", "organization_id", "organization_name", "repository_id", "repository_name", "severity", "state", "cwe", "description", "reachability_call_stack", "file_path", "start_line", "end_line"],
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"organization_id": {
+						"type": "string",
+						"description": "Git-provider organization ID."
+					},
+					"organization_name": {
+						"type": "string"
+					},
+					"repository_id": {
+						"type": "string",
+						"description": "Git-provider repository ID."
+					},
+					"repository_name": {
+						"type": "string"
+					},
+					"severity": {
+						"type": "string"
+					},
+					"state": {
+						"type": "string",
+						"enum": ["open", "fixed", "dismissed"]
+					},
+					"cwe": {
+						"type": "string",
+						"nullable": true
+					},
+					"description": {
+						"type": "string",
+						"description": "Saved finding explanation as raw text."
+					},
+					"reachability_call_stack": {
+						"type": "array",
+						"description": "Stored human-readable reachability evidence captured for the finding. The array may combine and deduplicate frames from multiple paths, so it does not guarantee one source-to-sink order or a stable frame grammar. An empty array means no stack was captured; it does not mean the finding is unreachable.",
+						"items": {
+							"type": "string"
+						}
+					},
+					"file_path": {
+						"type": "string"
+					},
+					"start_line": {
+						"type": "integer"
+					},
+					"end_line": {
+						"type": "integer"
+					},
+					"scan_provenance": {
+						"$ref": "#/components/schemas/SecurityFindingProvenance"
+					}
+				}
+			},
+			"SecuritySecretFinding": {
+				"type": "object",
+				"description": "Secret metadata only. Secret values, matches, snippets, descriptions, and recommendations are never returned.",
+				"required": ["id", "organization_id", "organization_name", "repository_id", "repository_name", "secret_type", "status", "file_path", "start_line", "end_line", "confidence", "verification_status"],
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"organization_id": {
+						"type": "string"
+					},
+					"organization_name": {
+						"type": "string"
+					},
+					"repository_id": {
+						"type": "string"
+					},
+					"repository_name": {
+						"type": "string"
+					},
+					"secret_type": {
+						"type": "string"
+					},
+					"status": {
+						"type": "string"
+					},
+					"file_path": {
+						"type": "string"
+					},
+					"start_line": {
+						"type": "integer"
+					},
+					"end_line": {
+						"type": "integer"
+					},
+					"confidence": {
+						"type": "string"
+					},
+					"verification_status": {
+						"type": "string",
+						"nullable": true
+					}
+				}
+			},
+			"SecurityDependency": {
+				"type": "object",
+				"required": ["id", "organization_id", "organization_name", "repository_id", "repository_name", "package_name", "package_version", "ecosystem", "manifest_path", "severity", "fixed_version", "status"],
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"organization_id": {
+						"type": "string"
+					},
+					"organization_name": {
+						"type": "string"
+					},
+					"repository_id": {
+						"type": "string"
+					},
+					"repository_name": {
+						"type": "string"
+					},
+					"package_name": {
+						"type": "string"
+					},
+					"package_version": {
+						"type": "string"
+					},
+					"ecosystem": {
+						"type": "string"
+					},
+					"manifest_path": {
+						"type": "string"
+					},
+					"severity": {
+						"type": "string"
+					},
+					"fixed_version": {
+						"type": "string",
+						"nullable": true
+					},
+					"status": {
+						"type": "string"
+					}
+				}
+			},
+			"SecuritySbomComponent": {
+				"type": "object",
+				"required": ["id", "organization_id", "organization_name", "repository_id", "repository_name", "package_name", "package_version", "ecosystem", "manifest_path", "license", "package_url", "status"],
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"organization_id": {
+						"type": "string"
+					},
+					"organization_name": {
+						"type": "string"
+					},
+					"repository_id": {
+						"type": "string"
+					},
+					"repository_name": {
+						"type": "string"
+					},
+					"package_name": {
+						"type": "string"
+					},
+					"package_version": {
+						"type": "string"
+					},
+					"ecosystem": {
+						"type": "string"
+					},
+					"manifest_path": {
+						"type": "string"
+					},
+					"license": {
+						"type": "string",
+						"nullable": true
+					},
+					"package_url": {
+						"type": "string"
+					},
+					"status": {
+						"type": "string"
+					}
+				}
+			},
+			"SecurityProvenanceRepository": {
+				"type": "object",
+				"required": ["repositoryId", "provider", "host", "revision"],
+				"properties": {
+					"repositoryId": {
+						"type": "string"
+					},
+					"provider": {
+						"type": "string",
+						"nullable": true
+					},
+					"host": {
+						"type": "string",
+						"nullable": true
+					},
+					"revision": {
+						"type": "string",
+						"nullable": true
+					}
+				}
+			},
+			"SecurityFindingProvenance": {
+				"type": "object",
+				"description": "Optional scan provenance. Nested fields use camelCase. Linked repositories provide context; finding ownership and coverage remain with the primary repository. Paginated JSON does not load evidence: evidenceStatus is not_loaded, supportingContext is null, and sourceFrames is empty.",
+				"required": ["scanId", "scope", "evidenceStatus", "supportingContext", "sourceFrames"],
+				"properties": {
+					"scanId": {
+						"type": "string"
+					},
+					"contextCitations": {
+						"type": "array",
+						"maxItems": 20,
+						"items": {
+							"type": "object",
+							"required": ["repositoryId", "repository", "revision", "path", "startLine", "endLine", "url"],
+							"properties": {
+								"repositoryId": {
+									"type": "string"
+								},
+								"repository": {
+									"type": "string"
+								},
+								"revision": {
+									"type": "string",
+									"pattern": "^[a-fA-F0-9]{40}$"
+								},
+								"path": {
+									"type": "string"
+								},
+								"startLine": {
+									"type": "integer",
+									"nullable": true,
+									"minimum": 1
+								},
+								"endLine": {
+									"type": "integer",
+									"nullable": true,
+									"minimum": 1
+								},
+								"url": {
+									"type": "string",
+									"format": "uri"
+								}
+							}
+						}
+					},
+					"scope": {
+						"type": "object",
+						"required": ["primary", "selectedContext", "limitations"],
+						"properties": {
+							"primary": {
+								"$ref": "#/components/schemas/SecurityProvenanceRepository"
+							},
+							"selectedContext": {
+								"type": "array",
+								"items": {
+									"$ref": "#/components/schemas/SecurityProvenanceRepository"
+								}
+							},
+							"limitations": {
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"evidenceStatus": {
+						"type": "string",
+						"enum": ["available", "unavailable", "not_loaded"]
+					},
+					"supportingContext": {
+						"type": "array",
+						"nullable": true,
+						"items": {
+							"$ref": "#/components/schemas/SecurityProvenanceRepository"
+						}
+					},
+					"sourceFrames": {
+						"type": "array",
+						"items": {
+							"allOf": [
+								{
+									"$ref": "#/components/schemas/SecurityProvenanceRepository"
+								},
+								{
+									"type": "object",
+									"required": ["evidenceId", "targetSnapshotId", "path", "startLine", "endLine", "contentHash", "role", "freshness"],
+									"properties": {
+										"evidenceId": {
+											"type": "string"
+										},
+										"targetSnapshotId": {
+											"type": "string"
+										},
+										"path": {
+											"type": "string"
+										},
+										"startLine": {
+											"type": "integer",
+											"minimum": 1
+										},
+										"endLine": {
+											"type": "integer",
+											"minimum": 1
+										},
+										"contentHash": {
+											"type": "string"
+										},
+										"role": {
+											"type": "string"
+										},
+										"freshness": {
+											"type": "string"
+										}
+									}
+								}
+							]
+						}
+					}
+				}
+			}
+		},
+		"parameters": {
+			"SecurityOrgId": {
+				"in": "query",
+				"name": "org_id",
+				"required": false,
+				"schema": {
+					"type": "string"
+				},
+				"description": "Git-provider organization ID for workspace API keys. Omit for the complete workspace scope."
+			},
+			"SecurityRepoId": {
+				"in": "query",
+				"name": "repo_id",
+				"required": false,
+				"schema": {
+					"type": "string"
+				},
+				"description": "One exact Git-provider repository ID. It must belong to the authenticated organization scope; response items expose it as repository_id together with organization and repository names."
+			},
+			"SecurityScanId": {
+				"in": "query",
+				"name": "scan_id",
+				"required": false,
+				"schema": {
+					"type": "string",
+					"format": "uuid"
+				},
+				"description": "Historical scan snapshot. By default each repository uses its latest completed scan."
+			},
+			"SecurityStatus": {
+				"in": "query",
+				"name": "status",
+				"required": false,
+				"schema": {
+					"type": "string",
+					"enum": ["open", "resolved", "ignored", "all"]
+				}
+			},
+			"SecurityCodeState": {
+				"in": "query",
+				"name": "state",
+				"required": false,
+				"schema": {
+					"type": "string",
+					"enum": ["open", "fixed", "dismissed", "all"],
+					"default": "open"
+				}
+			},
+			"SecurityLimit": {
+				"in": "query",
+				"name": "limit",
+				"required": false,
+				"schema": {
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 1000,
+					"default": 1000
+				},
+				"description": "JSON pagination only."
+			},
+			"SecurityCursor": {
+				"in": "query",
+				"name": "cursor",
+				"required": false,
+				"schema": {
+					"type": "string"
+				},
+				"description": "Opaque next_cursor from the previous JSON response."
+			}
+		}
+	},
+	"security": [
+		{
+			"ApiKeyAuth": []
+		}
+	]
+}
