@@ -5,9 +5,12 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { SecurityCodeFinding } from './securityCodeFinding';
+import type { SecurityScansCodeList200OneMetadata } from './securityScansCodeList200OneMetadata';
 
 export type SecurityScansCodeList200One = {
   data: SecurityCodeFinding[];
   /** @nullable */
   next_cursor: string | null;
+  /** Present only when this page contains populated LLM-generated description or call-stack text. This is a response-level provenance assertion, not attribution of every finding or field. */
+  metadata?: SecurityScansCodeList200OneMetadata;
 };

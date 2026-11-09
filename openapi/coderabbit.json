@@ -283,7 +283,7 @@
 					}
 				],
 				"summary": "Metrics Data",
-				"description": "Access CodeRabbit metrics data programmatically via REST API.",
+				"description": "Returns finalized pull request metrics with CodeRabbit review comments. Merged PRs use merge time and closed-unmerged PRs use close time for the requested range and cursor. Supports cursor-based pagination, paged in write order rather than by merge/close time, so a row written after your cursor already passed its merge or close date (a backfill, or a reopen/reclose) still appears on a later page instead of being silently skipped. Each page request consumes one token when admitted by the request rate limiter. Reviews, review comments, and MCP share the Metrics quota for the configured quota owner. With verified owner scope, coordinate calls across API keys for the same organization, workspace, or Git-provider instance; changing an organization selector does not add quota.",
 				"parameters": [
 					{
 						"name": "x-coderabbitai-api-key",
@@ -428,13 +428,31 @@
 											"estimated_complexity": 3,
 											"estimated_review_minutes": 45,
 											"coderabbit_comments": {
-												"total": { "posted": 8, "accepted": 5 },
+												"total": {
+													"posted": 8,
+													"accepted": 5
+												},
 												"severity": {
-													"critical": { "posted": 2, "accepted": 1 },
-													"major": { "posted": 3, "accepted": 2 },
-													"minor": { "posted": 2, "accepted": 1 },
-													"trivial": { "posted": 1, "accepted": 1 },
-													"info": { "posted": 0, "accepted": 0 }
+													"critical": {
+														"posted": 2,
+														"accepted": 1
+													},
+													"major": {
+														"posted": 3,
+														"accepted": 2
+													},
+													"minor": {
+														"posted": 2,
+														"accepted": 1
+													},
+													"trivial": {
+														"posted": 1,
+														"accepted": 1
+													},
+													"info": {
+														"posted": 0,
+														"accepted": 0
+													}
 												},
 												"category": {
 													"security_and_privacy": {
@@ -537,45 +555,101 @@
 						}
 					},
 					"429": {
-						"description": "Too Many Requests",
+						"description": "Request rate limit exceeded (RATE_LIMIT_EXCEEDED), active metrics query capacity reached (METRICS_BUSY), or an identical authorized query is still running (METRICS_QUERY_IN_PROGRESS). Wait at least the full Retry-After interval after receiving the response, then retry the same cursor and query parameters. Do not advance the cursor on an error. Other calls sharing the quota can cause another rejection after the wait. X-RateLimit headers are present only for RATE_LIMIT_EXCEEDED, not for the other 429 errors.",
 						"headers": {
-							"X-RateLimit-Limit": {
-								"description": "Maximum number of requests allowed per minute",
+							"Retry-After": {
 								"schema": {
-									"type": "integer",
-									"example": 10
-								}
+									"type": "integer"
+								},
+								"description": "Seconds to wait before retrying; dynamic for request rate limits, 5 for METRICS_BUSY or METRICS_QUERY_IN_PROGRESS"
+							},
+							"X-RateLimit-Limit": {
+								"required": false,
+								"schema": {
+									"type": "integer"
+								},
+								"description": "Token bucket burst capacity, not the number of requests allowed per minute"
 							},
 							"X-RateLimit-Remaining": {
-								"description": "Number of requests remaining in the current rate limit window",
+								"required": false,
 								"schema": {
-									"type": "integer",
-									"example": 0
-								}
+									"type": "integer"
+								},
+								"description": "Whole tokens remaining; 0 on request rate rejection"
 							},
 							"X-RateLimit-Reset": {
-								"description": "Unix timestamp when the rate limit window resets",
+								"required": false,
 								"schema": {
-									"type": "integer",
-									"example": 1704067200
-								}
-							},
-							"Retry-After": {
-								"description": "Number of seconds to wait before retrying",
-								"schema": {
-									"type": "integer",
-									"example": 60
-								}
+									"type": "integer"
+								},
+								"description": "Estimated Unix timestamp in seconds when the bucket will be full if no more tokens are consumed, or when a temporary local rate block ends. Use Retry-After to schedule the next retry."
 							}
 						},
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/components/schemas/Error"
+									"type": "object",
+									"properties": {
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"message": {
+														"type": "string"
+													},
+													"code": {
+														"type": "string",
+														"enum": ["RATE_LIMIT_EXCEEDED", "METRICS_BUSY", "METRICS_QUERY_IN_PROGRESS"]
+													}
+												}
+											}
+										}
+									}
 								},
 								"example": {
-									"message": "Rate limit exceeded. Please retry after 60 seconds.",
-									"code": "RATE_LIMITED"
+									"errors": [
+										{
+											"code": "RATE_LIMIT_EXCEEDED",
+											"message": "Too many requests. Please retry after 60 seconds."
+										}
+									]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "Metrics are preparing (METRICS_PREPARING), active-query admission cannot safely proceed (METRICS_UNAVAILABLE), or API quota custody cannot be proved (POLICY_SCOPE_UNAVAILABLE). Retry the same request after Retry-After when present; otherwise retry later.",
+						"headers": {
+							"Retry-After": {
+								"required": false,
+								"schema": {
+									"type": "integer"
+								},
+								"description": "Seconds to wait for METRICS_PREPARING, or 5 for METRICS_UNAVAILABLE; absent for POLICY_SCOPE_UNAVAILABLE"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"code": {
+														"type": "string",
+														"enum": ["METRICS_PREPARING", "METRICS_UNAVAILABLE", "POLICY_SCOPE_UNAVAILABLE"]
+													},
+													"message": {
+														"type": "string"
+													}
+												}
+											}
+										}
+									}
 								}
 							}
 						}
@@ -2729,7 +2803,7 @@
 			"get": {
 				"operationId": "mcp-metrics",
 				"summary": "Get MCP server usage by pull request",
-				"description": "Returns one JSON row per merged, reviewed pull request that used MCP, with MCP servers and tools nested under servers. Join to GET /v1/metrics/reviews on pr_url. Counts are best-effort usage telemetry. Access is controlled by an organization-scoped feature flag. Pagination is in write order rather than by merge date, so a pull request written after your cursor already passed its merge date (a backfill) still appears on a later page instead of being silently skipped.",
+				"description": "Returns one JSON row per merged, reviewed pull request that used MCP, with MCP servers and tools nested under servers. Join to GET /v1/metrics/reviews on pr_url. Counts are best-effort usage telemetry. Access is controlled by an organization-scoped feature flag. Pagination is in write order rather than by merge date, so a pull request written after your cursor already passed its merge date (a backfill) still appears on a later page instead of being silently skipped. Each page request consumes one token when admitted by the request rate limiter. Reviews, review comments, and MCP share the Metrics quota for the configured quota owner. With verified owner scope, coordinate calls across API keys for the same organization, workspace, or Git-provider instance; changing an organization selector does not add quota.",
 				"tags": ["Metrics"],
 				"security": [
 					{
@@ -2907,19 +2981,97 @@
 						"description": "No matching organization exists"
 					},
 					"429": {
-						"description": "Rate limit exceeded"
-					},
-					"500": {
-						"description": "Internal server error"
-					},
-					"503": {
-						"description": "Isolated metrics are preparing (METRICS_PREPARING); retry the same request",
+						"description": "Request rate limit exceeded (RATE_LIMIT_EXCEEDED), active metrics query capacity reached (METRICS_BUSY), or an identical authorized query is still running (METRICS_QUERY_IN_PROGRESS). Wait at least the full Retry-After interval after receiving the response, then retry the same cursor and query parameters. Do not advance the cursor on an error. Other calls sharing the quota can cause another rejection after the wait. X-RateLimit headers are present only for RATE_LIMIT_EXCEEDED, not for the other 429 errors.",
 						"headers": {
 							"Retry-After": {
 								"schema": {
 									"type": "integer"
 								},
-								"description": "Seconds to wait before retrying"
+								"description": "Seconds to wait before retrying; dynamic for request rate limits, 5 for METRICS_BUSY or METRICS_QUERY_IN_PROGRESS"
+							},
+							"X-RateLimit-Limit": {
+								"required": false,
+								"schema": {
+									"type": "integer"
+								},
+								"description": "Token bucket burst capacity, not the number of requests allowed per minute"
+							},
+							"X-RateLimit-Remaining": {
+								"required": false,
+								"schema": {
+									"type": "integer"
+								},
+								"description": "Whole tokens remaining; 0 on request rate rejection"
+							},
+							"X-RateLimit-Reset": {
+								"required": false,
+								"schema": {
+									"type": "integer"
+								},
+								"description": "Estimated Unix timestamp in seconds when the bucket will be full if no more tokens are consumed, or when a temporary local rate block ends. Use Retry-After to schedule the next retry."
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"code": {
+														"type": "string",
+														"enum": ["RATE_LIMIT_EXCEEDED", "METRICS_BUSY", "METRICS_QUERY_IN_PROGRESS"]
+													},
+													"message": {
+														"type": "string"
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error"
+					},
+					"503": {
+						"description": "Metrics are preparing (METRICS_PREPARING), active-query admission cannot safely proceed (METRICS_UNAVAILABLE), or API quota custody cannot be proved (POLICY_SCOPE_UNAVAILABLE). Retry the same request after Retry-After when present; otherwise retry later.",
+						"headers": {
+							"Retry-After": {
+								"required": false,
+								"schema": {
+									"type": "integer"
+								},
+								"description": "Seconds to wait for METRICS_PREPARING, or 5 for METRICS_UNAVAILABLE; absent for POLICY_SCOPE_UNAVAILABLE"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"code": {
+														"type": "string",
+														"enum": ["METRICS_PREPARING", "METRICS_UNAVAILABLE", "POLICY_SCOPE_UNAVAILABLE"]
+													},
+													"message": {
+														"type": "string"
+													}
+												}
+											}
+										}
+									}
+								}
 							}
 						}
 					}
@@ -2930,8 +3082,8 @@
 		"/v1/security/scans/code": {
 			"get": {
 				"operationId": "security-scans-code-list",
-				"summary": "List or export AI Deep Scan code findings",
-				"description": "Returns cursor-paginated JSON by default. CSV and SARIF formats download the complete repository/scan inventory (up to 50,000 records and 16 MB). Code findings include saved reachability evidence as raw call-stack strings and explanation text. The call-stack array may combine frames from multiple paths; an empty array means no stack was captured, not that the finding is unreachable. Available on all plans with a non-agentic API key and security:read permission. No Security add-on or trial is required. Other APIs retain their existing plan requirements. JSON rows may include scan_provenance with saved scope and evidenceStatus not_loaded. CSV scan_provenance contains compact scanId, primary repositoryId/revision, selectedContextRepositoryIds, and evidenceStatus. SARIF result properties.scanProvenance contains the full provenance, including available evidence. Context repositories do not own findings or coverage.",
+				"summary": "List or export Deep Scan code findings",
+				"description": "Returns cursor-paginated JSON by default. CSV and SARIF formats download the complete repository/scan inventory (up to 50,000 records and 16 MB). Code findings include saved reachability evidence as raw call-stack strings and explanation text. The call-stack array may combine frames from multiple paths; an empty array means no stack was captured, not that the finding is unreachable. Available on all plans with a non-agentic API key and security:read permission. No Security add-on or trial is required. Other APIs retain their existing plan requirements. JSON rows may include scan_provenance with saved scope, coverageScope, and evidenceStatus not_loaded. CSV scan_provenance contains compact scanId, coverageScope, primary repositoryId/revision, selectedContextRepositoryIds, and evidenceStatus. SARIF result properties.scanProvenance contains the full provenance, including available evidence. coverageScope distinguishes repository, selected directories, or unavailable metadata independently from execution completion. Context repositories do not own findings or coverage.",
 				"tags": ["Security"],
 				"parameters": [
 					{
@@ -2980,6 +3132,27 @@
 										"next_cursor": {
 											"type": "string",
 											"nullable": true
+										},
+										"metadata": {
+											"type": "object",
+											"description": "Present only when this page contains populated LLM-generated description or call-stack text. This is a response-level provenance assertion, not attribution of every finding or field.",
+											"required": ["ai_generated"],
+											"properties": {
+												"ai_generated": {
+													"type": "object",
+													"required": ["version", "generator"],
+													"properties": {
+														"version": {
+															"type": "integer",
+															"enum": [1]
+														},
+														"generator": {
+															"type": "string",
+															"enum": ["CodeRabbit"]
+														}
+													}
+												}
+											}
 										}
 									}
 								}
@@ -3157,7 +3330,7 @@
 			"get": {
 				"operationId": "review-comment-metrics",
 				"summary": "Get review comment metrics for merged pull requests",
-				"description": "Returns JSON with one entry per merged pull request that has stored CodeRabbit review comment metrics. The inclusive UTC date window selects pull requests by merge date, regardless of when comments were posted. Pull requests without stored comments are excluded before pagination. Pagination is in write order rather than by merge date, so a pull request written after your cursor already passed its merge date (a backfill, or a reopen/reclose) still appears on a later page instead of being silently skipped. Each nested comment entry represents a stored finding; a comment URL may occur more than once when the posted comment contains multiple findings. Comment text is not returned. Unknown query parameters, including format and status, are rejected. Available on the Enterprise plan. Self-hosted CodeRabbit deployments can use this API when configured to send metrics to CodeRabbit Cloud. Requests include all organizations authorized by the API token unless narrowed by an organization selector.",
+				"description": "Returns JSON with one entry per merged pull request that has stored CodeRabbit review comment metrics. The inclusive UTC date window selects pull requests by merge date, regardless of when comments were posted. Pull requests without stored comments are excluded before pagination. Pagination is in write order rather than by merge date, so a pull request written after your cursor already passed its merge date (a backfill, or a reopen/reclose) still appears on a later page instead of being silently skipped. Each nested comment entry represents a stored finding; a comment URL may occur more than once when the posted comment contains multiple findings. Comment text is not returned. Unknown query parameters, including format and status, are rejected. Available on the Enterprise plan. Self-hosted CodeRabbit deployments can use this API when configured to send metrics to CodeRabbit Cloud. Requests include all organizations authorized by the API token unless narrowed by an organization selector. Each page request consumes one token when admitted by the request rate limiter. Reviews, review comments, and MCP share the Metrics quota for the configured quota owner. With verified owner scope, coordinate calls across API keys for the same organization, workspace, or Git-provider instance; changing an organization selector does not add quota.",
 				"tags": ["Metrics"],
 				"security": [
 					{
@@ -3350,13 +3523,58 @@
 						"description": "JSON response exceeds 16 MiB. Reduce limit, narrow the date window, or add filters. A single pull request's comments cannot be split across pages; excluding that pull request may be necessary."
 					},
 					"429": {
-						"description": "Metrics API rate limit exceeded",
+						"description": "Request rate limit exceeded (RATE_LIMIT_EXCEEDED), active metrics query capacity reached (METRICS_BUSY), or an identical authorized query is still running (METRICS_QUERY_IN_PROGRESS). Wait at least the full Retry-After interval after receiving the response, then retry the same cursor and query parameters. Do not advance the cursor on an error. Other calls sharing the quota can cause another rejection after the wait. X-RateLimit headers are present only for RATE_LIMIT_EXCEEDED, not for the other 429 errors.",
 						"headers": {
 							"Retry-After": {
 								"schema": {
 									"type": "integer"
 								},
-								"description": "Seconds to wait before retrying"
+								"description": "Seconds to wait before retrying; dynamic for request rate limits, 5 for METRICS_BUSY or METRICS_QUERY_IN_PROGRESS"
+							},
+							"X-RateLimit-Limit": {
+								"required": false,
+								"schema": {
+									"type": "integer"
+								},
+								"description": "Token bucket burst capacity, not the number of requests allowed per minute"
+							},
+							"X-RateLimit-Remaining": {
+								"required": false,
+								"schema": {
+									"type": "integer"
+								},
+								"description": "Whole tokens remaining; 0 on request rate rejection"
+							},
+							"X-RateLimit-Reset": {
+								"required": false,
+								"schema": {
+									"type": "integer"
+								},
+								"description": "Estimated Unix timestamp in seconds when the bucket will be full if no more tokens are consumed, or when a temporary local rate block ends. Use Retry-After to schedule the next retry."
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"code": {
+														"type": "string",
+														"enum": ["RATE_LIMIT_EXCEEDED", "METRICS_BUSY", "METRICS_QUERY_IN_PROGRESS"]
+													},
+													"message": {
+														"type": "string"
+													}
+												}
+											}
+										}
+									}
+								}
 							}
 						}
 					},
@@ -3364,15 +3582,475 @@
 						"description": "Internal server error"
 					},
 					"503": {
-						"description": "Review comment metrics temporarily unavailable; retry later",
+						"description": "Metrics are preparing (METRICS_PREPARING), active-query admission cannot safely proceed (METRICS_UNAVAILABLE), or API quota custody cannot be proved (POLICY_SCOPE_UNAVAILABLE). Retry the same request after Retry-After when present; otherwise retry later.",
 						"headers": {
 							"Retry-After": {
+								"required": false,
 								"schema": {
 									"type": "integer"
 								},
-								"description": "Seconds to wait when isolated metrics are preparing (METRICS_PREPARING)"
+								"description": "Seconds to wait for METRICS_PREPARING, or 5 for METRICS_UNAVAILABLE; absent for POLICY_SCOPE_UNAVAILABLE"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"code": {
+														"type": "string",
+														"enum": ["METRICS_PREPARING", "METRICS_UNAVAILABLE", "POLICY_SCOPE_UNAVAILABLE"]
+													},
+													"message": {
+														"type": "string"
+													}
+												}
+											}
+										}
+									}
+								}
 							}
 						}
+					}
+				}
+			},
+			"x-generated": true
+		},
+		"/v1/bug-scan/findings": {
+			"get": {
+				"operationId": "bug-scan-findings-list",
+				"summary": "List or export Bug Scan findings",
+				"description": "Returns one repository's Bug Scan findings from its latest completed scan, or from scan_id. Cursor-paginated JSON by default; CSV and SARIF 2.1.0 download every matching finding of the scan (up to 50,000 records and 16 MB). Findings are in the scan's rank order. Each finding carries its fingerprint, severity, category, location, every location it applies to, explanation, the prompt for AI agents, the verifier's account, and its state (open, fixed or dismissed) with the dismiss reason. Requires a non-agentic API key with bug_scan:read permission, and Bug Scan enabled for the organization; other organizations receive 403 BUG_SCAN_NOT_ENABLED.",
+				"tags": ["Bug Scan"],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "org_id",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Git-provider organization ID for workspace API keys. Omit for the complete workspace scope."
+					},
+					{
+						"in": "query",
+						"name": "repo_id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "One exact Git-provider repository ID in the authenticated organization scope."
+					},
+					{
+						"in": "query",
+						"name": "scan_id",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						},
+						"description": "A completed scan of the repository. Defaults to the latest completed scan."
+					},
+					{
+						"in": "query",
+						"name": "severity",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": ["critical", "major", "minor", "trivial"]
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 1000,
+							"default": 100
+						},
+						"description": "JSON page size."
+					},
+					{
+						"in": "query",
+						"name": "cursor",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "next_cursor from the previous JSON page. A cursor stays on the scan it was issued for."
+					},
+					{
+						"in": "query",
+						"name": "format",
+						"schema": {
+							"type": "string",
+							"enum": ["json", "csv", "sarif"],
+							"default": "json"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Paginated JSON or a full-scan download.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["data", "next_cursor", "scan"],
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"required": ["state", "dismiss_reason"],
+												"properties": {
+													"id": {
+														"type": "string",
+														"format": "uuid"
+													},
+													"fingerprint": {
+														"type": "string",
+														"nullable": true
+													},
+													"severity": {
+														"type": "string",
+														"enum": ["critical", "major", "minor", "trivial"]
+													},
+													"category": {
+														"type": "string",
+														"nullable": true
+													},
+													"path": {
+														"type": "string",
+														"nullable": true
+													},
+													"start_line": {
+														"type": "integer",
+														"nullable": true
+													},
+													"end_line": {
+														"type": "integer",
+														"nullable": true
+													},
+													"locations": {
+														"type": "array",
+														"description": "Every location the finding applies to, the anchor first (role anchor), then each other site (role sibling), in this file or another. Empty when the finding has no path or line.",
+														"items": {
+															"type": "object",
+															"required": ["path", "start_line", "end_line", "role"],
+															"properties": {
+																"path": {
+																	"type": "string"
+																},
+																"start_line": {
+																	"type": "integer"
+																},
+																"end_line": {
+																	"type": "integer"
+																},
+																"role": {
+																	"type": "string",
+																	"enum": ["anchor", "sibling"]
+																}
+															}
+														}
+													},
+													"explanation": {
+														"type": "string"
+													},
+													"agent_prompt": {
+														"type": "string",
+														"nullable": true
+													},
+													"verification": {
+														"type": "object",
+														"properties": {
+															"status": {
+																"type": "string",
+																"enum": ["verified", "unverified"]
+															},
+															"result": {
+																"type": "string",
+																"nullable": true
+															},
+															"evidence": {
+																"type": "string"
+															}
+														}
+													},
+													"rank": {
+														"type": "integer",
+														"nullable": true
+													},
+													"state": {
+														"type": "string",
+														"enum": ["open", "fixed", "dismissed"]
+													},
+													"dismiss_reason": {
+														"type": "string",
+														"nullable": true,
+														"description": "false_positive, wont_fix, accepted_risk or other; null unless state is dismissed."
+													},
+													"organization_id": {
+														"type": "string"
+													},
+													"organization_name": {
+														"type": "string"
+													},
+													"repository_id": {
+														"type": "string"
+													},
+													"repository_name": {
+														"type": "string"
+													},
+													"scan_id": {
+														"type": "string",
+														"format": "uuid"
+													}
+												}
+											}
+										},
+										"next_cursor": {
+											"type": "string",
+											"nullable": true
+										},
+										"scan": {
+											"type": "object",
+											"nullable": true,
+											"properties": {
+												"id": {
+													"type": "string",
+													"format": "uuid"
+												},
+												"head_commit": {
+													"type": "string",
+													"nullable": true
+												},
+												"completed_at": {
+													"type": "string",
+													"format": "date-time",
+													"nullable": true
+												},
+												"partial_coverage": {
+													"type": "boolean",
+													"description": "True when the scan did not cover the whole repository (its completeness verdict is incomplete). A scan that recorded no verdict reports its legacy partial flag."
+												}
+											}
+										}
+									}
+								}
+							},
+							"text/csv": {
+								"schema": {
+									"type": "string",
+									"format": "binary"
+								}
+							},
+							"application/sarif+json": {
+								"schema": {
+									"type": "string",
+									"format": "binary"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid parameter or cursor, or a repo_id held by more than one workspace organization (AMBIGUOUS_REPOSITORY: pass org_id)."
+					},
+					"401": {
+						"description": "Invalid or inactive API key."
+					},
+					"403": {
+						"description": "Forbidden key type, missing bug_scan:read, Bug Scan not enabled, or repository outside scope."
+					},
+					"404": {
+						"description": "scan_id is not a completed scan of the repository."
+					},
+					"410": {
+						"description": "Legacy organization API keys are no longer accepted."
+					},
+					"413": {
+						"description": "More than 50,000 records or more than 16 MB. Narrow with severity or reduce limit."
+					},
+					"429": {
+						"description": "Rate limit exceeded."
+					},
+					"500": {
+						"description": "Internal server error."
+					}
+				}
+			},
+			"x-generated": true
+		},
+		"/v1/linked-repositories": {
+			"get": {
+				"operationId": "linked-repositories-list",
+				"summary": "List linked repositories",
+				"description": "Lists manual configured candidates derived only from saved UI settings and stored automatic links filtered by saved UI settings. The manual projection approximates saved UI inheritance and overrides and normalizes at most 20 entries per settings layer. This is not a complete manual graph, effective configuration, or a record of review usage. Repository and central YAML-derived links are not read; custom sources and per-review overrides are also unavailable. These sources can change both manual associations and automatic mode. Repository and organization filters select a union of source repositories; omitted or empty filters select the full scope. Targets are resolvable active repositories in the source organization, within the authorized scope. Requires Enterprise, an authenticated CodeRabbit administrator (cr_admin), and both repository management and repository settings read permissions. Organization keys require an organization administrator; workspace keys require a workspace administrator. Self-hosted keys without user context are denied.",
+				"tags": ["Repositories"],
+				"security": [
+					{
+						"ApiKeyAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"in": "query",
+						"name": "repository_ids",
+						"description": "Provider repository IDs, comma-separated or repeated.",
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							}
+						},
+						"style": "form",
+						"explode": false,
+						"example": "12345,67890"
+					},
+					{
+						"in": "query",
+						"name": "organization_ids",
+						"description": "CodeRabbit organization UUIDs, comma-separated or repeated.",
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "string",
+								"format": "uuid"
+							}
+						},
+						"style": "form",
+						"explode": false
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100,
+							"default": 50
+						}
+					},
+					{
+						"in": "query",
+						"name": "cursor",
+						"description": "Pagination cursor from the previous response. Keep filters and limit unchanged.",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Linked repository graph page. GET /linked-repositories?repository_ids=12345&limit=50 selects one source repository.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["data", "next_cursor"],
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"required": ["repository", "linked_repositories"],
+												"properties": {
+													"repository": {
+														"type": "object",
+														"required": ["id", "name", "organization_id"],
+														"properties": {
+															"id": {
+																"type": "string"
+															},
+															"name": {
+																"type": "string"
+															},
+															"organization_id": {
+																"type": "string",
+																"format": "uuid"
+															}
+														}
+													},
+													"linked_repositories": {
+														"type": "array",
+														"items": {
+															"type": "object",
+															"required": ["id", "name", "organization_id", "type"],
+															"properties": {
+																"id": {
+																	"type": "string"
+																},
+																"name": {
+																	"type": "string"
+																},
+																"organization_id": {
+																	"type": "string",
+																	"format": "uuid"
+																},
+																"type": {
+																	"type": "string",
+																	"enum": ["MANUAL", "AUTO"]
+																}
+															}
+														}
+													}
+												}
+											}
+										},
+										"next_cursor": {
+											"type": "string",
+											"nullable": true
+										}
+									}
+								},
+								"example": {
+									"data": [
+										{
+											"repository": {
+												"id": "12345",
+												"name": "acme/api",
+												"organization_id": "550e8400-e29b-41d4-a716-446655440000"
+											},
+											"linked_repositories": [
+												{
+													"id": "67890",
+													"name": "acme/shared",
+													"organization_id": "550e8400-e29b-41d4-a716-446655440000",
+													"type": "MANUAL"
+												}
+											]
+										}
+									],
+									"next_cursor": null
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid filters or pagination cursor."
+					},
+					"401": {
+						"description": "Invalid API key or missing user context."
+					},
+					"403": {
+						"description": "Enterprise, rollout, CodeRabbit administrator, key type, or permission requirement not met."
+					},
+					"410": {
+						"description": "Legacy organization API key."
+					},
+					"429": {
+						"description": "Rate limit exceeded."
+					},
+					"500": {
+						"description": "Internal server error."
 					}
 				}
 			},
@@ -4080,6 +4758,9 @@
 					"scanId": {
 						"type": "string"
 					},
+					"coverageScope": {
+						"$ref": "#/components/schemas/SecurityScanCoverageScope"
+					},
 					"contextCitations": {
 						"type": "array",
 						"maxItems": 20,
@@ -4134,6 +4815,21 @@
 								"type": "array",
 								"items": {
 									"type": "string"
+								}
+							},
+							"linkedContext": {
+								"type": "object",
+								"description": "Present when selected linked repositories were unavailable at scan time and the scan covered the primary repository only.",
+								"required": ["status", "reason"],
+								"properties": {
+									"status": {
+										"type": "string",
+										"enum": ["unavailable"]
+									},
+									"reason": {
+										"type": "string",
+										"enum": ["denied", "unavailable", "limit_exceeded"]
+									}
 								}
 							}
 						}
@@ -4192,6 +4888,55 @@
 						}
 					}
 				}
+			},
+			"SecurityScanCoverageScope": {
+				"description": "Saved coverage selection, independent of completion and linked context. Missing or unavailable metadata must never be interpreted as repository coverage.",
+				"oneOf": [
+					{
+						"type": "object",
+						"additionalProperties": false,
+						"required": ["kind"],
+						"properties": {
+							"kind": {
+								"type": "string",
+								"enum": ["repository"]
+							}
+						}
+					},
+					{
+						"type": "object",
+						"additionalProperties": false,
+						"required": ["kind", "directories"],
+						"properties": {
+							"kind": {
+								"type": "string",
+								"enum": ["directories"]
+							},
+							"directories": {
+								"type": "array",
+								"minItems": 1,
+								"maxItems": 100,
+								"uniqueItems": true,
+								"items": {
+									"type": "string",
+									"minLength": 1,
+									"maxLength": 512
+								}
+							}
+						}
+					},
+					{
+						"type": "object",
+						"additionalProperties": false,
+						"required": ["kind"],
+						"properties": {
+							"kind": {
+								"type": "string",
+								"enum": ["unavailable"]
+							}
+						}
+					}
+				]
 			}
 		},
 		"parameters": {

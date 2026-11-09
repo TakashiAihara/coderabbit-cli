@@ -9,12 +9,14 @@ import type { SecurityFindingProvenanceEvidenceStatus } from './securityFindingP
 import type { SecurityFindingProvenanceScope } from './securityFindingProvenanceScope';
 import type { SecurityFindingProvenanceSourceFramesItem } from './securityFindingProvenanceSourceFramesItem';
 import type { SecurityProvenanceRepository } from './securityProvenanceRepository';
+import type { SecurityScanCoverageScope } from './securityScanCoverageScope';
 
 /**
  * Optional scan provenance. Nested fields use camelCase. Linked repositories provide context; finding ownership and coverage remain with the primary repository. Paginated JSON does not load evidence: evidenceStatus is not_loaded, supportingContext is null, and sourceFrames is empty.
  */
 export interface SecurityFindingProvenance {
   scanId: string;
+  coverageScope?: SecurityScanCoverageScope;
   /** @maxItems 20 */
   contextCitations?: SecurityFindingProvenanceContextCitationsItem[];
   scope: SecurityFindingProvenanceScope;

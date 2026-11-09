@@ -4,10 +4,13 @@
  * CodeRabbit API spec
  * OpenAPI spec version: 1.0.0
  */
+import type { SecurityFindingProvenanceScopeLinkedContext } from './securityFindingProvenanceScopeLinkedContext';
 import type { SecurityProvenanceRepository } from './securityProvenanceRepository';
 
 export type SecurityFindingProvenanceScope = {
   primary: SecurityProvenanceRepository;
   selectedContext: SecurityProvenanceRepository[];
   limitations: string[];
+  /** Present when selected linked repositories were unavailable at scan time and the scan covered the primary repository only. */
+  linkedContext?: SecurityFindingProvenanceScopeLinkedContext;
 };
