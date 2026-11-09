@@ -74,7 +74,7 @@ export const getReviewMetricsUrl = (params: ReviewMetricsParams,) => {
 }
 
 /**
- * Access CodeRabbit metrics data programmatically via REST API.
+ * Returns finalized pull request metrics with CodeRabbit review comments. Merged PRs use merge time and closed-unmerged PRs use close time for the requested range and cursor. Supports cursor-based pagination, paged in write order rather than by merge/close time, so a row written after your cursor already passed its merge or close date (a backfill, or a reopen/reclose) still appears on a later page instead of being silently skipped. Each page request consumes one token when admitted by the request rate limiter. Reviews, review comments, and MCP share the Metrics quota for the configured quota owner. With verified owner scope, coordinate calls across API keys for the same organization, workspace, or Git-provider instance; changing an organization selector does not add quota.
  * @summary Metrics Data
  */
 export const reviewMetrics = async (params: ReviewMetricsParams, options?: Parameters<typeof coderabbitFetch>[1]): Promise<ReviewMetrics200One | string> => {
